@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -416,46 +417,31 @@ class SettingsScreen extends StatelessWidget {
       }
 
       final jsonData = jsonEncode(data);
-      
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
-      if (selectedDirectory == null) return;
-
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final file = File('$selectedDirectory/account_manager_backup_$timestamp.json');
-      await file.writeAsString(jsonData);
+      final fileName = 'account_manager_backup_$timestamp.json';
+      
+      // Konversi string JSON ke format bytes
+      final bytes = Uint8List.fromList(utf8.encode(jsonData));
+      
+      // Menggunakan saveFile dan mengirimkan bytes secara langsung.
+      // Sistem Android akan memunculkan antarmuka "Save As" dan menangani I/O secara native.
+      String? outputFile = await FilePicker.platform.saveFile(
+        dialogTitle: 'Simpan Backup Akun',
+        fileName: fileName,
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+        bytes: bytes, 
+      );
 
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Berhasil disimpan di: ${file.path}')));
+      // Jika outputFile tidak null, berarti pengguna menekan "Simpan" dan proses native berhasil
+      if (outputFile != null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diekspor')));
+        }
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengekspor data: $e')));
-      }
-    }
-  }
-
-  Future<void> _importData(BuildContext context) async {
-    try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-      );
-
-      if (result == null || result.files.single.path == null) return;
-
-      final file = File(result.files.single.path!);
-      final jsonString = await file.readAsString();
-      final List<dynamic> jsonData = jsonDecode(jsonString);
-
-      await DatabaseHelper.instance.importAccounts(jsonData);
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diimpor')));
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengimpor: Pastikan format file JSON valid')));
       }
     }
   }
