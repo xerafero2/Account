@@ -296,38 +296,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
-              // Tombol Manajemen Data
               Container(
-                margin: const EdgeInsets.only(right: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8F9FA),
                   border: Border.all(color: Colors.black.withOpacity(0.05)),
                   borderRadius: BorderRadius.circular(12)
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.folder_open_rounded, size: 22, color: Colors.black87),
+                  icon: const Icon(Icons.settings, size: 22, color: Colors.black87),  // Ganti icon ke pengaturan
                   onPressed: () async {
-                    final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const DataManagementScreen()));
+                    final result = await Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
                     if (result == true) {
                       _refreshAccounts();
                     }
-                  },
-                  constraints: const BoxConstraints(),
-                  padding: const EdgeInsets.all(10),
-                ),
-              ),
-              // Tombol Pengaturan (Tema)
-              Container(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8F9FA),
-                  border: Border.all(color: Colors.black.withOpacity(0.05)),
-                  borderRadius: BorderRadius.circular(12)
-                ),
-                child: IconButton(
-                  icon: const Icon(Icons.settings_rounded, size: 22, color: Colors.black87),  // Ikon pengaturan
-                  onPressed: () async {
-                    await Navigator.push(context, MaterialPageRoute(builder: (context) => const SettingsScreen()));
-                    // Tema bisa langsung berubah tanpa perlu refresh akun
                   },
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(10),
@@ -422,9 +403,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// Halaman hanya untuk Tema
+// ----------------------------------------------------------------------
+// Halaman Pengaturan Utama (sekarang hanya menu navigasi)
+// ----------------------------------------------------------------------
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pengaturan', style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20), onPressed: () => Navigator.pop(context)),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFF8F9FA),
+                    child: Icon(Icons.color_lens_outlined, color: Colors.black87),
+                  ),
+                  title: const Text('Tema Aplikasi', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Ubah warna tema', style: TextStyle(fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ThemeSettingsScreen())),
+                ),
+                const Divider(height: 1, color: Colors.black12),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFF8F9FA),
+                    child: Icon(Icons.swap_horiz_outlined, color: Colors.black87),
+                  ),
+                  title: const Text('Manajemen Data', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Ekspor / Impor / Salin JSON', style: TextStyle(fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen())),
+                ),
+              ],
+            ),
+          )
+        ],
+      ),
+    );
+  }
+}
+
+// ----------------------------------------------------------------------
+// Halaman Khusus Tema
+// ----------------------------------------------------------------------
+class ThemeSettingsScreen extends StatelessWidget {
+  const ThemeSettingsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -439,7 +480,7 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pengaturan Tema', style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: const Text('Pilih Tema', style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20), onPressed: () => Navigator.pop(context)),
@@ -447,12 +488,12 @@ class SettingsScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('TEMA APLIKASI', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54, letterSpacing: 1)),
-          ),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black.withOpacity(0.05))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
+            ),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -482,7 +523,9 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-// Halaman Manajemen Data (Ekspor/Impor + Salin/Tempel JSON)
+// ----------------------------------------------------------------------
+// Halaman Manajemen Data (Ekspor/Impor/Salin JSON)
+// ----------------------------------------------------------------------
 class DataManagementScreen extends StatelessWidget {
   const DataManagementScreen({Key? key}) : super(key: key);
 
@@ -512,12 +555,33 @@ class DataManagementScreen extends StatelessWidget {
 
       if (outputFile != null) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diekspor')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diekspor ke file')));
         }
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengekspor data: $e')));
+      }
+    }
+  }
+
+  Future<void> _copyToClipboard(BuildContext context) async {
+    try {
+      final data = await DatabaseHelper.instance.getAllAccounts();
+      if (data.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada data untuk disalin')));
+        }
+        return;
+      }
+      final jsonString = jsonEncode(data);
+      await Clipboard.setData(ClipboardData(text: jsonString));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('JSON berhasil disalin ke clipboard')));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyalin: $e')));
       }
     }
   }
@@ -538,7 +602,7 @@ class DataManagementScreen extends StatelessWidget {
       await DatabaseHelper.instance.importAccounts(jsonData);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diimpor')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diimpor dari file')));
         Navigator.pop(context, true);
       }
     } catch (e) {
@@ -548,60 +612,27 @@ class DataManagementScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _copyJsonToClipboard(BuildContext context) async {
-    try {
-      final data = await DatabaseHelper.instance.getAllAccounts();
-      if (data.isEmpty) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada data untuk disalin')));
-        }
-        return;
-      }
-      final jsonString = jsonEncode(data);
-      await Clipboard.setData(ClipboardData(text: jsonString));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('JSON data akun disalin ke clipboard')));
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyalin: $e')));
-      }
-    }
-  }
-
-  Future<void> _pasteJsonFromClipboard(BuildContext context) async {
+  Future<void> _pasteFromClipboard(BuildContext context) async {
     try {
       final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
       if (clipboardData == null || clipboardData.text == null || clipboardData.text!.isEmpty) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clipboard kosong atau tidak berisi teks')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clipboard kosong')));
         }
         return;
       }
-      
+
       final jsonString = clipboardData.text!;
       final List<dynamic> jsonData = jsonDecode(jsonString);
-      
-      // Konfirmasi sebelum impor
+      if (jsonData is! List) {
+        throw const FormatException('Data JSON bukan array');
+      }
+
+      await DatabaseHelper.instance.importAccounts(jsonData);
+
       if (context.mounted) {
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Impor dari Clipboard'),
-            content: Text('Anda akan mengimpor ${jsonData.length} akun. Lanjutkan?'),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
-              TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Impor')),
-            ],
-          ),
-        );
-        if (confirm == true) {
-          await DatabaseHelper.instance.importAccounts(jsonData);
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diimpor dari clipboard')));
-            Navigator.pop(context, true);
-          }
-        }
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data dari clipboard berhasil diimpor')));
+        Navigator.pop(context, true);
       }
     } catch (e) {
       if (context.mounted) {
@@ -622,12 +653,12 @@ class DataManagementScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('EKSPOR & IMPOR', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54, letterSpacing: 1)),
-          ),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black.withOpacity(0.05))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
+            ),
             child: Column(
               children: [
                 ListTile(
@@ -640,47 +671,39 @@ class DataManagementScreen extends StatelessWidget {
                 const Divider(height: 1, color: Colors.black12),
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  leading: const CircleAvatar(backgroundColor: Color(0xFFF8F9FA), child: Icon(Icons.copy_outlined, color: Colors.black87)),
+                  title: const Text('Salin JSON ke Clipboard', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Salin seluruh data dalam format JSON', style: TextStyle(fontSize: 12)),
+                  onTap: () => _copyToClipboard(context),
+                ),
+                const Divider(height: 1, color: Colors.black12),
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const CircleAvatar(backgroundColor: Color(0xFFF8F9FA), child: Icon(Icons.download_outlined, color: Colors.black87)),
                   title: const Text('Impor dari File', style: TextStyle(fontWeight: FontWeight.w600)),
                   subtitle: const Text('Pulihkan akun dari file JSON', style: TextStyle(fontSize: 12)),
                   onTap: () => _importFromFile(context),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Text('CLIPBOARD', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54, letterSpacing: 1)),
-          ),
-          Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black.withOpacity(0.05))),
-            child: Column(
-              children: [
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  leading: const CircleAvatar(backgroundColor: Color(0xFFF8F9FA), child: Icon(Icons.copy_outlined, color: Colors.black87)),
-                  title: const Text('Salin JSON ke Clipboard', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Salin seluruh data akun sebagai JSON', style: TextStyle(fontSize: 12)),
-                  onTap: () => _copyJsonToClipboard(context),
                 ),
                 const Divider(height: 1, color: Colors.black12),
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const CircleAvatar(backgroundColor: Color(0xFFF8F9FA), child: Icon(Icons.paste_outlined, color: Colors.black87)),
                   title: const Text('Tempel JSON dari Clipboard', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Impor data dari JSON yang disalin', style: TextStyle(fontSize: 12)),
-                  onTap: () => _pasteJsonFromClipboard(context),
+                  subtitle: const Text('Impor akun dari teks JSON di clipboard', style: TextStyle(fontSize: 12)),
+                  onTap: () => _pasteFromClipboard(context),
                 ),
               ],
             ),
-          ),
+          )
         ],
       ),
     );
   }
 }
 
+// ----------------------------------------------------------------------
+// AccountCard (dengan perbaikan avatar lingkaran & tombol share)
+// ----------------------------------------------------------------------
 class AccountCard extends StatefulWidget {
   final Map<String, dynamic> account;
   final int index;
@@ -701,20 +724,39 @@ class _AccountCardState extends State<AccountCard> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$label tersalin', style: const TextStyle(fontWeight: FontWeight.w500)), duration: const Duration(seconds: 1)));
   }
 
-  void _shareAccountJson() {
-    // Membuat salinan data akun tanpa id untuk dibagikan/disalin
-    final acc = Map<String, dynamic>.from(widget.account);
-    acc.remove('id'); // opsional, bisa disertakan jika perlu
-    final jsonString = jsonEncode(acc);
-    _copyToClipboard(jsonString, 'Data akun');
-  }
-
   String _getTotp() {
     try {
       return OTP.generateTOTPCodeString(widget.account['secret_key'], DateTime.now().millisecondsSinceEpoch, length: 6, interval: 30, algorithm: Algorithm.SHA1, isGoogle: true);
     } catch (e) {
       return 'ERROR ';
     }
+  }
+
+  void _shareAccountDetail() {
+    final acc = widget.account;
+    final String name = acc['name'] ?? '';
+    final String identifier = acc['identifier'] ?? '';
+    final String password = _isPasswordVisible ? acc['password'] : '••••••••';
+    final String tags = acc['tags'] ?? '';
+    final String dob = acc['dob'] ?? '';
+    final String year = acc['account_year'] ?? '';
+    String totp = '';
+    if (acc['a2f'] == 1 && acc['secret_key'] != null) {
+      totp = _getTotp();
+    }
+
+    final detail = '''
+Nama: $name
+ID/Email: $identifier
+Password: $password
+Tags: $tags
+Tgl Lahir: $dob
+Tahun Akun: $year
+2FA Code: $totp
+'''.trim();
+
+    Clipboard.setData(ClipboardData(text: detail));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Detail akun disalin ke clipboard')));
   }
 
   Widget _buildPlatformIcon(String? iconPath, String name, double size) {
@@ -780,16 +822,19 @@ class _AccountCardState extends State<AccountCard> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar seperti foto Google (lingkaran sempurna tanpa border)
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: const Color(0xFFE0E0E0),
-                  backgroundImage: (acc['avatar_path'] != null && acc['avatar_path'].toString().isNotEmpty)
-                      ? FileImage(File(acc['avatar_path']))
-                      : null,
-                  child: (acc['avatar_path'] == null || acc['avatar_path'].toString().isEmpty)
-                      ? const Icon(Icons.person, color: Colors.white)
-                      : null,
+                // Ganti avatar dengan ClipOval agar gambar terpotong lingkaran sempurna
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5),
+                  ),
+                  child: ClipOval(
+                    child: acc['avatar_path'] != null && acc['avatar_path'].toString().isNotEmpty
+                        ? Image.file(File(acc['avatar_path']), fit: BoxFit.cover)
+                        : Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -949,19 +994,20 @@ class _AccountCardState extends State<AccountCard> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    // Tombol Bagikan (Salin JSON Akun)
+                    const SizedBox(width: 12),
+                    // Tombol share (salin detail akun)
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE0F2FE), // Biru sangat muda
+                        color: const Color(0xFFE0F2FE),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: IconButton(
-                        icon: const Icon(Icons.share_outlined, color: Color(0xFF0284C7)), // Warna biru
-                        onPressed: _shareAccountJson,
+                        icon: const Icon(Icons.share_outlined, color: Color(0xFF0284C7)),
+                        onPressed: _shareAccountDetail,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 12),
+                    // Tombol hapus
                     Container(
                       decoration: BoxDecoration(color: const Color(0xFFFFE4E6), borderRadius: BorderRadius.circular(8)),
                       child: IconButton(
@@ -1003,6 +1049,9 @@ class _AccountCardState extends State<AccountCard> {
   }
 }
 
+// ----------------------------------------------------------------------
+// AccountFormScreen (dengan perbaikan avatar lingkaran)
+// ----------------------------------------------------------------------
 class AccountFormScreen extends StatefulWidget {
   final Map<String, dynamic>? account;
   const AccountFormScreen({Key? key, this.account}) : super(key: key);
@@ -1155,6 +1204,60 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
           child: Column(
             children: [
+              // Avatar preview lingkaran (menggunakan CircleAvatar)
+              Center(
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundColor: Colors.white,
+                  backgroundImage: (selectedAvatarPath != null && selectedAvatarPath!.isNotEmpty)
+                      ? FileImage(File(selectedAvatarPath!))
+                      : null,
+                  child: (selectedAvatarPath == null || selectedAvatarPath!.isEmpty)
+                      ? Icon(Icons.person_outline, size: 40, color: Theme.of(context).colorScheme.primary)
+                      : null,
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 50,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    GestureDetector(
+                      onTap: () => _pickImage(true), // sekarang ganti avatar
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        width: 50,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F9FA),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.black12, style: BorderStyle.solid),
+                        ),
+                        child: const Icon(Icons.add_photo_alternate_outlined, color: Colors.black54),
+                      ),
+                    ),
+                    // Tombol untuk hapus avatar (set null)
+                    GestureDetector(
+                      onTap: () => setState(() { selectedAvatarPath = null; }),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        width: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: selectedAvatarPath == null ? Theme.of(context).colorScheme.primary : Colors.black12,
+                            width: selectedAvatarPath == null ? 2 : 1,
+                          ),
+                        ),
+                        child: const Icon(Icons.person_off_outlined, color: Colors.black54, size: 24),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Icon platform preview
               Center(
                 child: Container(
                   width: 80,
@@ -1249,7 +1352,7 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
                       ),
                       clipBehavior: Clip.hardEdge,
                       child: selectedAvatarPath != null
-                          ? Image.file(File(selectedAvatarPath!), fit: BoxFit.cover)
+                          ? ClipOval(child: Image.file(File(selectedAvatarPath!), fit: BoxFit.cover))
                           : const Icon(Icons.add_a_photo_outlined, color: Colors.black38, size: 20),
                     ),
                   ),
