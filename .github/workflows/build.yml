@@ -13,16 +13,20 @@ jobs:
           flutter-version: '3.x'
           
       - name: Initialize Flutter Project
-        run: flutter create .
+        run: flutter create . --force
         
-      - name: Update Android compileSdk to 36
-        run: |
-          sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle
-          sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
-          
       - name: Get Dependencies
         run: flutter pub get
         
+      - name: Update Android compileSdk to 36
+        run: |
+          if [ -f android/app/build.gradle ]; then
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle
+            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
+          else
+            echo "Warning: android/app/build.gradle not found"
+          fi
+          
       - name: Build APK
         run: flutter build apk --release
         
