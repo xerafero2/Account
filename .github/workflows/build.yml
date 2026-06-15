@@ -15,19 +15,35 @@ jobs:
       - name: Initialize Android Platform
         run: flutter create --platforms=android .
         
-      - name: Update Android compileSdk to 36
+      - name: Force SDK 36 on all Plugins (The Fix)
         run: |
-          if [ -f "android/app/build.gradle.kts" ]; then
-            echo "Format Kotlin DSL ditemukan (build.gradle.kts)"
-            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
-          elif [ -f "android/app/build.gradle" ]; then
-            echo "Format Groovy DSL ditemukan (build.gradle)"
-            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle
-            sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
-          else
-            echo "Error: File konfigurasi Gradle tidak ditemukan!"
-            ls -la android/app/ || true
-            exit 1
+          if [ -f "android/build.gradle" ]; then
+            cat << 'EOF' >> android/build.gradle
+          
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          compileSdkVersion 36
+                      }
+                  }
+              }
+          }
+          EOF
+          fi
+          
+          if [ -f "android/build.gradle.kts" ]; then
+            cat << 'EOF' >> android/build.gradle.kts
+          
+          subprojects {
+              afterEvaluate {
+                  if (project.hasProperty("android")) {
+                      val ext = project.extensions.getByName("android") as com.android.build.gradle.BaseExtension
+                      ext.compileSdkVersion(36)
+                  }
+              }
+          }
+          EOF
           fi
           
       - name: Get Dependencies
