@@ -420,11 +420,8 @@ class SettingsScreen extends StatelessWidget {
       final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
       final fileName = 'account_manager_backup_$timestamp.json';
       
-      // Konversi string JSON ke format bytes
       final bytes = Uint8List.fromList(utf8.encode(jsonData));
       
-      // Menggunakan saveFile dan mengirimkan bytes secara langsung.
-      // Sistem Android akan memunculkan antarmuka "Save As" dan menangani I/O secara native.
       String? outputFile = await FilePicker.platform.saveFile(
         dialogTitle: 'Simpan Backup Akun',
         fileName: fileName,
@@ -433,68 +430,6 @@ class SettingsScreen extends StatelessWidget {
         bytes: bytes, 
       );
 
-      // Jika outputFile tidak null, berarti pengguna menekan "Simpan" dan proses native berhasil
-      if (outputFile != null) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diekspor')));
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal mengekspor data: $e')));
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> themes = [
-      {'name': 'Biru Profesional (Default)', 'color': const Color(0xFF1E40AF)},
-      {'name': 'Ungu Modern', 'color': const Color(0xFF6C4DFF)},
-      {'name': 'Hijau Emerald', 'color': const Color(0xFF059669)},
-      {'name': 'Merah Ruby', 'color': const Color(0xFFDC2626)},
-      {'name': 'Hitam Elegan', 'color': const Color(0xFF1F2937)},
-      {'name': 'Oranye Senja', 'color': const Color(0xFFEA580C)},
-    ];
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pengaturan', style: TextStyle(color: Colors.black87, fontSize: 18, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87, size: 20), onPressed: () => Navigator.pop(context)),
-      ),
-      body: ListView(
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
-
-  Future<void> _exportData(BuildContext context) async {
-    try {
-      final data = await DatabaseHelper.instance.getAllAccounts();
-      if (data.isEmpty) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada data untuk diekspor')));
-        }
-        return;
-      }
-
-      final jsonData = jsonEncode(data);
-      final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-      final fileName = 'account_manager_backup_$timestamp.json';
-      
-      // Konversi string JSON ke format bytes
-      final bytes = Uint8List.fromList(utf8.encode(jsonData));
-      
-      // Menggunakan saveFile dan mengirimkan bytes secara langsung.
-      String? outputFile = await FilePicker.platform.saveFile(
-        dialogTitle: 'Simpan Backup Akun',
-        fileName: fileName,
-        type: FileType.custom,
-        allowedExtensions: ['json'],
-        bytes: bytes, 
-      );
-
-      // Jika outputFile tidak null, berarti pengguna menekan "Simpan"
       if (outputFile != null) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diekspor')));
