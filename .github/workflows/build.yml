@@ -12,21 +12,27 @@ jobs:
         with:
           flutter-version: '3.x'
           
-      - name: Initialize Flutter Project
-        run: flutter create . --force
-        
-      - name: Get Dependencies
-        run: flutter pub get
+      - name: Initialize Android Platform
+        run: flutter create --platforms=android .
         
       - name: Update Android compileSdk to 36
         run: |
-          if [ -f android/app/build.gradle ]; then
+          if [ -f "android/app/build.gradle.kts" ]; then
+            echo "Format Kotlin DSL ditemukan (build.gradle.kts)"
+            sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle.kts
+          elif [ -f "android/app/build.gradle" ]; then
+            echo "Format Groovy DSL ditemukan (build.gradle)"
             sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 36/g' android/app/build.gradle
             sed -i 's/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 36/g' android/app/build.gradle
           else
-            echo "Warning: android/app/build.gradle not found"
+            echo "Error: File konfigurasi Gradle tidak ditemukan!"
+            ls -la android/app/ || true
+            exit 1
           fi
           
+      - name: Get Dependencies
+        run: flutter pub get
+        
       - name: Build APK
         run: flutter build apk --release
         
