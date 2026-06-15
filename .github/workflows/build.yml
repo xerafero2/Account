@@ -15,40 +15,37 @@ jobs:
       - name: Initialize Android Platform
         run: flutter create --platforms=android .
         
-      - name: Force SDK 36 on all Plugins (The Fix)
-        run: |
-          if [ -f "android/build.gradle" ]; then
-            cat << 'EOF' >> android/build.gradle
-          
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty('android')) {
-                      project.android {
-                          compileSdkVersion 36
-                      }
-                  }
-              }
-          }
-          EOF
-          fi
-          
-          if [ -f "android/build.gradle.kts" ]; then
-            cat << 'EOF' >> android/build.gradle.kts
-          
-          subprojects {
-              afterEvaluate {
-                  if (project.hasProperty("android")) {
-                      val ext = project.extensions.getByName("android") as com.android.build.gradle.BaseExtension
-                      ext.compileSdkVersion(36)
-                  }
-              }
-          }
-          EOF
-          fi
-          
+      # Pastikan get dependencies dijalankan lebih dulu agar cache terunduh
       - name: Get Dependencies
         run: flutter pub get
         
+      # Trik Pamungkas: Ubah teks di file Gradle secara langsung via Bash (Bypass Gradle Lifecycle)
+      - name: Force Android SDK 36 (App & Plugins)
+        run: |
+          echo "Memperbarui SDK pada Aplikasi Utama..."
+          for file in android/app/build.gradle android/app/build.gradle.kts; do
+            if [ -f "$file" ]; then
+              sed -i 's/flutter.compileSdkVersion/36/g' "$file"
+              sed -i 's/flutter.targetSdkVersion/36/g' "$file"
+              sed -i -E 's/compileSdk = [0-9]+/compileSdk = 36/g' "$file"
+              sed -i -E 's/compileSdkVersion [0-9]+/compileSdkVersion 36/g' "$file"
+            fi
+          done
+          
+          echo "Memperbarui SDK pada seluruh Plugin (termasuk file_picker)..."
+          if [ -f ".flutter-plugins" ]; then
+            # Membaca daftar lokasi plugin dari .flutter-plugins dan menimpanya
+            awk -F '=' '{print $2}' .flutter-plugins | tr -d '\r' | while read plugin_path; do
+              for file in "${plugin_path}android/build.gradle" "${plugin_path}android/build.gradle.kts"; do
+                if [ -f "$file" ]; then
+                  sed -i -E 's/compileSdkVersion [0-9]+/compileSdkVersion 36/g' "$file"
+                  sed -i -E 's/compileSdk [0-9]+/compileSdk 36/g' "$file"
+                  sed -i -E 's/compileSdk = [0-9]+/compileSdk = 36/g' "$file"
+                fi
+              done
+            done
+          fi
+          
       - name: Build APK
         run: flutter build apk --release
         
