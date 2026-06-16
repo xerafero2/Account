@@ -516,10 +516,15 @@ class ThemeSelectionScreen extends StatelessWidget {
             child: Text('PILIH WARNA UTAMA', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54, letterSpacing: 1)),
           ),
           Container(
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black.withOpacity(0.05))),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
+            ),
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,   // <-- MENGHILANGKAN PADDING BAWAAN
               itemCount: themes.length,
               separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
               itemBuilder: (context, index) {
