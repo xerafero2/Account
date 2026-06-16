@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart'; // tambahan untuk direktori lokal
 import 'package:otp/otp.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -70,7 +71,7 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('account_manager_v6.db');
+    _database = await _initDB('account_manager_v7.db');
     return _database!;
   }
 
@@ -148,12 +149,32 @@ class DatabaseHelper {
     return await db.query('accounts');
   }
 
+  // Impor akun dengan dukungan avatar_base64
   Future<void> importAccounts(List<dynamic> accountsList) async {
     final db = await instance.database;
     Batch batch = db.batch();
+    final dir = await getApplicationDocumentsDirectory(); // direktori lokal untuk menyimpan avatar
+
     for (var acc in accountsList) {
       Map<String, dynamic> row = Map<String, dynamic>.from(acc);
-      row.remove('id');
+      row.remove('id'); // id akan di-generate ulang
+
+      // Konversi avatar_base64 menjadi file lokal
+      if (row['avatar_base64'] != null && row['avatar_base64'].toString().isNotEmpty) {
+        try {
+          final bytes = base64Decode(row['avatar_base64']);
+          final fileName = 'avatar_${DateTime.now().millisecondsSinceEpoch}_${bytes.hashCode}.jpg';
+          final file = File(p.join(dir.path, fileName));
+          await file.writeAsBytes(bytes);
+          row['avatar_path'] = file.path; // simpan path lokal baru
+        } catch (e) {
+          debugPrint('Gagal menyimpan avatar dari base64: $e');
+          row['avatar_path'] = null; // fallback jika gagal
+        }
+      }
+      // Hapus field avatar_base64 agar tidak masuk ke database
+      row.remove('avatar_base64');
+
       batch.insert('accounts', row);
     }
     await batch.commit(noResult: true);
@@ -445,8 +466,12 @@ class SettingsScreen extends StatelessWidget {
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               leading: const CircleAvatar(backgroundColor: Color(0xFFF8F9FA), child: Icon(Icons.storage_outlined, color: Colors.black87)),
               title: const Text('Manajemen Data', style: TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen()));
+              onTap: () async {
+                final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen()));
+                if (result == true) {
+                  // kembalikan true agar dashboard tahu ada perubahan
+                  Navigator.pop(context, true);
+                }
               },
             ),
           ),
@@ -482,7 +507,7 @@ class ThemeSelectionScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         children: [
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: EdgeInsets.only(left: 16, right: 16, bottom: 12),
             child: Text('PILIH WARNA UTAMA', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54, letterSpacing: 1)),
           ),
           Container(
@@ -520,9 +545,31 @@ class ThemeSelectionScreen extends StatelessWidget {
 class DataManagementScreen extends StatelessWidget {
   const DataManagementScreen({Key? key}) : super(key: key);
 
+  // Fungsi untuk menambahkan avatar_base64 ke setiap akun
+  Future<List<Map<String, dynamic>>> _prepareAccountsForExport() async {
+    final accounts = await DatabaseHelper.instance.getAllAccounts();
+    final List<Map<String, dynamic>> exportList = [];
+    for (var acc in accounts) {
+      final Map<String, dynamic> accCopy = Map<String, dynamic>.from(acc);
+      if (accCopy['avatar_path'] != null && accCopy['avatar_path'].toString().isNotEmpty) {
+        final file = File(accCopy['avatar_path']);
+        if (await file.exists()) {
+          try {
+            final bytes = await file.readAsBytes();
+            accCopy['avatar_base64'] = base64Encode(bytes);
+          } catch (e) {
+            debugPrint('Gagal membaca avatar untuk ekspor: $e');
+          }
+        }
+      }
+      exportList.add(accCopy);
+    }
+    return exportList;
+  }
+
   Future<void> _exportToFile(BuildContext context) async {
     try {
-      final data = await DatabaseHelper.instance.getAllAccounts();
+      final data = await _prepareAccountsForExport();
       if (data.isEmpty) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada data untuk diekspor')));
@@ -558,7 +605,7 @@ class DataManagementScreen extends StatelessWidget {
 
   Future<void> _copyJsonToClipboard(BuildContext context) async {
     try {
-      final data = await DatabaseHelper.instance.getAllAccounts();
+      final data = await _prepareAccountsForExport();
       if (data.isEmpty) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada data untuk disalin')));
@@ -603,29 +650,47 @@ class DataManagementScreen extends StatelessWidget {
     }
   }
 
-  Future<void> _importFromClipboard(BuildContext context) async {
+  // Dialog untuk menempelkan JSON
+  Future<void> _showPasteDialog(BuildContext context) async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Tempel JSON Akun'),
+        content: TextField(
+          controller: controller,
+          maxLines: 10,
+          decoration: const InputDecoration(
+            hintText: 'Tempelkan data JSON di sini...',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, controller.text),
+            child: const Text('Impor'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == null || result.trim().isEmpty) return;
+
     try {
-      final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
-      if (clipboardData == null || clipboardData.text == null || clipboardData.text!.isEmpty) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Clipboard kosong')));
-        }
-        return;
-      }
-
-      final jsonString = clipboardData.text!;
-      final List<dynamic> jsonData = jsonDecode(jsonString);
-      if (jsonData is! List) throw const FormatException('Format JSON bukan array');
-
+      final List<dynamic> jsonData = jsonDecode(result);
+      if (jsonData is! List) throw const FormatException('JSON bukan array');
       await DatabaseHelper.instance.importAccounts(jsonData);
-
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diimpor dari clipboard')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diimpor dari tempelan')));
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengimpor: Pastikan clipboard berisi JSON array yang valid')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal mengimpor: Pastikan format JSON valid')));
       }
     }
   }
@@ -688,9 +753,9 @@ class DataManagementScreen extends StatelessWidget {
                 ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const CircleAvatar(backgroundColor: Color(0xFFF8F9FA), child: Icon(Icons.paste_outlined, color: Colors.black87)),
-                  title: const Text('Tempel dari Clipboard', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Impor JSON yang sudah disalin', style: TextStyle(fontSize: 12)),
-                  onTap: () => _importFromClipboard(context),
+                  title: const Text('Tempel JSON', style: TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Impor dari teks JSON yang ditempel', style: TextStyle(fontSize: 12)),
+                  onTap: () => _showPasteDialog(context),
                 ),
               ],
             ),
@@ -758,6 +823,19 @@ class _AccountCardState extends State<AccountCard> {
     final List<String> tags = (acc['tags'] ?? '').toString().split(',').where((e) => e.trim().isNotEmpty).toList();
     final String displayName = (acc['name'] == null || acc['name'].toString().trim().isEmpty) ? 'AKUN' : acc['name'].toString().toUpperCase();
 
+    // Widget avatar dengan fallback jika file tidak ada
+    Widget avatarWidget;
+    if (acc['avatar_path'] != null && acc['avatar_path'].toString().isNotEmpty) {
+      final file = File(acc['avatar_path']);
+      if (file.existsSync()) {
+        avatarWidget = Image.file(file, fit: BoxFit.cover);
+      } else {
+        avatarWidget = Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary);
+      }
+    } else {
+      avatarWidget = Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary);
+    }
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
@@ -799,7 +877,6 @@ class _AccountCardState extends State<AccountCard> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar dengan ClipOval agar gambar terpotong lingkaran
                 Container(
                   width: 48,
                   height: 48,
@@ -807,11 +884,7 @@ class _AccountCardState extends State<AccountCard> {
                     shape: BoxShape.circle,
                     border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5),
                   ),
-                  child: ClipOval(
-                    child: acc['avatar_path'] != null && acc['avatar_path'].toString().isNotEmpty
-                        ? Image.file(File(acc['avatar_path']), fit: BoxFit.cover)
-                        : Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary),
-                  ),
+                  child: ClipOval(child: avatarWidget),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -972,7 +1045,6 @@ class _AccountCardState extends State<AccountCard> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Tombol salin JSON akun (ikon bagikan)
                     Container(
                       decoration: BoxDecoration(color: const Color(0xFFE0F2FE), borderRadius: BorderRadius.circular(8)),
                       child: IconButton(
@@ -982,7 +1054,6 @@ class _AccountCardState extends State<AccountCard> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Tombol hapus
                     Container(
                       decoration: BoxDecoration(color: const Color(0xFFFFE4E6), borderRadius: BorderRadius.circular(8)),
                       child: IconButton(
