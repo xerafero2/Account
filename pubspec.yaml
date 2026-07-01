@@ -28,5 +28,5 @@ flutter:
 
 flutter_launcher_icons:
   android: true
-  ios: true
+  ios: false
   image_path: "assets/icon/icon.png"   # siapkan file icon di folder assets/icon/
