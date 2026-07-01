@@ -13,8 +13,8 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart'; // untuk direktori aplikasi
-import 'dart:math'; // untuk random string nama file
+import 'package:path_provider/path_provider.dart';
+import 'dart:math';
 
 class ThemeManager {
   static final ValueNotifier<Color> appColor = ValueNotifier(const Color(0xFF1E40AF));
@@ -37,11 +37,11 @@ class ThemeManager {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ThemeManager.loadTheme();
-  runApp(const SocialMediaManagerApp());
+  runApp(const AccountManagerApp());
 }
 
-class SocialMediaManagerApp extends StatelessWidget {
-  const SocialMediaManagerApp({Key? key}) : super(key: key);
+class AccountManagerApp extends StatelessWidget {
+  const AccountManagerApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +49,7 @@ class SocialMediaManagerApp extends StatelessWidget {
       valueListenable: ThemeManager.appColor,
       builder: (context, color, child) {
         return MaterialApp(
-          title: 'AccountManager',
+          title: 'Account Manager',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(
             useMaterial3: true,
@@ -72,7 +72,7 @@ class DatabaseHelper {
 
   Future<Database> get database async {
     if (_database != null) return _database!;
-    _database = await _initDB('account_manager_v6.db');
+    _database = await _initDB('account_manager.db');
     return _database!;
   }
 
@@ -150,7 +150,6 @@ class DatabaseHelper {
     return await db.query('accounts');
   }
 
-  /// Menyimpan string base64 menjadi file gambar di direktori aplikasi
   static Future<String?> saveBase64Image(String base64String) async {
     try {
       final bytes = base64Decode(base64String);
@@ -165,15 +164,13 @@ class DatabaseHelper {
     }
   }
 
-  /// Impor akun dari list, mendukung avatar_base64
   Future<void> importAccounts(List<dynamic> accountsList) async {
     final db = await instance.database;
     Batch batch = db.batch();
     for (var acc in accountsList) {
       Map<String, dynamic> row = Map<String, dynamic>.from(acc);
-      row.remove('id'); // id akan autoincrement
+      row.remove('id');
 
-      // Jika ada avatar_base64, simpan sebagai file dan ganti avatar_path
       if (row['avatar_base64'] != null && row['avatar_base64'].toString().isNotEmpty) {
         final path = await DatabaseHelper.saveBase64Image(row['avatar_base64']);
         if (path != null) {
@@ -318,7 +315,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('AccountManager', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: -0.5)),
+                    const Text('Account Manager', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: -0.5)),
                     const SizedBox(height: 2),
                     Text('${_accounts.length} Akun tersimpan', style: TextStyle(color: themeColor, fontWeight: FontWeight.bold, fontSize: 12)),
                   ],
@@ -431,7 +428,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// ---- Pengaturan Utama ----
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
 
@@ -474,7 +470,6 @@ class SettingsScreen extends StatelessWidget {
               onTap: () async {
                 final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen()));
                 if (result == true) {
-                  // Jika manajemen data menghasilkan perubahan, teruskan agar Dashboard ikut refresh
                   if (context.mounted) Navigator.pop(context, true);
                 }
               },
@@ -486,7 +481,6 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
-// ---- Halaman Tema ----
 class ThemeSelectionScreen extends StatelessWidget {
   const ThemeSelectionScreen({Key? key}) : super(key: key);
 
@@ -524,7 +518,7 @@ class ThemeSelectionScreen extends StatelessWidget {
             child: ListView.separated(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,   // <-- MENGHILANGKAN PADDING BAWAAN
+              padding: EdgeInsets.zero,
               itemCount: themes.length,
               separatorBuilder: (_, __) => const Divider(height: 1, color: Colors.black12),
               itemBuilder: (context, index) {
@@ -551,11 +545,9 @@ class ThemeSelectionScreen extends StatelessWidget {
   }
 }
 
-// ---- Manajemen Data (Ekspor/Impor) ----
 class DataManagementScreen extends StatelessWidget {
   const DataManagementScreen({Key? key}) : super(key: key);
 
-  /// Menambahkan base64 avatar ke setiap akun untuk ekspor
   Future<List<Map<String, dynamic>>> _prepareExportData() async {
     final data = await DatabaseHelper.instance.getAllAccounts();
     final enhancedData = <Map<String, dynamic>>[];
@@ -654,7 +646,6 @@ class DataManagementScreen extends StatelessWidget {
     }
   }
 
-  // Dialog untuk import dari clipboard
   Future<void> _showClipboardImportDialog(BuildContext context) async {
     final controller = TextEditingController();
     return showDialog<void>(
@@ -684,7 +675,7 @@ class DataManagementScreen extends StatelessWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diimpor dari clipboard')));
                   Navigator.pop(ctx);
-                  Navigator.pop(context, true); // kembali ke SettingsScreen sambil kirim true
+                  Navigator.pop(context, true);
                 }
               } catch (e) {
                 if (context.mounted) {
@@ -770,7 +761,6 @@ class DataManagementScreen extends StatelessWidget {
   }
 }
 
-// ---- Kartu Akun (dengan perbaikan visual) ----
 class AccountCard extends StatefulWidget {
   final Map<String, dynamic> account;
   final int index;
@@ -833,12 +823,12 @@ class _AccountCardState extends State<AccountCard> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withOpacity(0.15)),  // border lebih halus
+        border: Border.all(color: Colors.grey.withOpacity(0.15)),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.08),  // shadow abu-abu ringan
+            color: Colors.grey.withOpacity(0.08),
             blurRadius: 8,
-            offset: const Offset(0, 2),          // offset kecil
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -875,7 +865,6 @@ class _AccountCardState extends State<AccountCard> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Avatar lingkaran sempurna
                 Container(
                   width: 48,
                   height: 48,
@@ -982,48 +971,57 @@ class _AccountCardState extends State<AccountCard> {
             ),
 
           if (acc['a2f'] == 1 && acc['secret_key'] != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('2-FACTOR CODE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black54, letterSpacing: 0.5)),
-                          const SizedBox(height: 4),
-                          Text(
-                            _getTotp(),
-                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFDC2626), letterSpacing: 4),
-                          ),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: LinearProgressIndicator(
-                              value: widget.secondsRemaining / 30,
-                              backgroundColor: Colors.black12,
-                              color: const Color(0xFFDC2626),
-                              minHeight: 3,
-                            ),
-                          )
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.copy_outlined, color: Colors.black54),
-                      onPressed: () => _copyToClipboard(_getTotp().replaceAll(' ', ''), 'Token 2FA'),
-                    )
-                  ],
-                ),
-              ),
-            ),
+		  Padding(
+		    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+		    child: Container(
+		      padding: const EdgeInsets.all(16),
+		      decoration: BoxDecoration(
+		        color: const Color(0xFFF8FAFC),
+		        border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
+		        borderRadius: BorderRadius.circular(12),
+		      ),
+		      child: Row(
+		        children: [
+		          Expanded(
+		            child: Column(
+		              crossAxisAlignment: CrossAxisAlignment.start,
+		              children: [
+		                const Text('2-FACTOR CODE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black54, letterSpacing: 0.5)),
+		                const SizedBox(height: 4),
+		                Text(
+		                  _getTotp(),
+		                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFDC2626), letterSpacing: 4),
+		                ),
+		                const SizedBox(height: 8),
+		                ClipRRect(
+		                  borderRadius: BorderRadius.circular(2),
+		                  child: LinearProgressIndicator(
+		                    value: widget.secondsRemaining / 30,
+		                    backgroundColor: Colors.black12,
+		                    color: const Color(0xFFDC2626),
+		                    minHeight: 3,
+		                  ),
+		                ),
+		                const SizedBox(height: 6),               // <-- jarak kecil
+		                Text(                                    // <-- teks detik ditambahkan
+		                  '${widget.secondsRemaining} detik',
+		                  style: const TextStyle(
+		                    fontSize: 12,
+		                    fontWeight: FontWeight.w600,
+		                    color: Colors.black54,
+		                  ),
+		                ),
+		              ],
+		            ),
+		          ),
+		          IconButton(
+		            icon: const Icon(Icons.copy_outlined, color: Colors.black54),
+		            onPressed: () => _copyToClipboard(_getTotp().replaceAll(' ', ''), 'Token 2FA'),
+		          )
+		        ],
+		      ),
+		    ),
+		  ),
 
           Padding(
             padding: const EdgeInsets.all(16.0),
