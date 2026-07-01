@@ -17,6 +17,8 @@ jobs:
         
       - name: Get Dependencies
         run: flutter pub get
+
+      - name: Add Icon
         run: flutter pub run flutter_launcher_icons
         
       - name: Force Android SDK 36 (Brute Force Cache Patch)
