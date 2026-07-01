@@ -16,6 +16,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'dart:math';
 
+// ==================== THEME MANAGER ====================
 class ThemeManager {
   static final ValueNotifier<Color> appColor = ValueNotifier(const Color(0xFF1E40AF));
 
@@ -34,36 +35,7 @@ class ThemeManager {
   }
 }
 
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await ThemeManager.loadTheme();
-  runApp(const AccountManagerApp());
-}
-
-class AccountManagerApp extends StatelessWidget {
-  const AccountManagerApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<Color>(
-      valueListenable: ThemeManager.appColor,
-      builder: (context, color, child) {
-        return MaterialApp(
-          title: 'Account Manager',
-          debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            useMaterial3: true,
-            scaffoldBackgroundColor: const Color(0xFFF4F6F9),
-            colorScheme: ColorScheme.fromSeed(seedColor: color, primary: color),
-            fontFamily: 'Roboto',
-          ),
-          home: const DashboardScreen(),
-        );
-      },
-    );
-  }
-}
-
+// ==================== DATABASE HELPER ====================
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
@@ -185,6 +157,114 @@ class DatabaseHelper {
   }
 }
 
+// ==================== SPLASH SCREEN ====================
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({Key? key}) : super(key: key);
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen> {
+  @override
+  void initState() {
+    super.initState();
+    Timer(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final themeColor = ThemeManager.appColor.value;
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [themeColor, themeColor.withOpacity(0.7)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: themeColor.withOpacity(0.3),
+                    blurRadius: 15,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.security_rounded, color: Colors.white, size: 50),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Account Manager',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: themeColor,
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Kelola Akun Anda dengan Aman',
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black54,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==================== MAIN APP ====================
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ThemeManager.loadTheme();
+  runApp(const AccountManagerApp());
+}
+
+class AccountManagerApp extends StatelessWidget {
+  const AccountManagerApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Color>(
+      valueListenable: ThemeManager.appColor,
+      builder: (context, color, child) {
+        return MaterialApp(
+          title: 'Account Manager',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            useMaterial3: true,
+            scaffoldBackgroundColor: const Color(0xFFF4F6F9),
+            colorScheme: ColorScheme.fromSeed(seedColor: color, primary: color),
+            fontFamily: 'Roboto',
+          ),
+          home: const SplashScreen(),
+        );
+      },
+    );
+  }
+}
+
+// ==================== DASHBOARD ====================
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
 
@@ -428,6 +508,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
+// ==================== SETTINGS ====================
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);
 
@@ -481,6 +562,7 @@ class SettingsScreen extends StatelessWidget {
   }
 }
 
+// ==================== THEME SELECTION ====================
 class ThemeSelectionScreen extends StatelessWidget {
   const ThemeSelectionScreen({Key? key}) : super(key: key);
 
@@ -545,6 +627,7 @@ class ThemeSelectionScreen extends StatelessWidget {
   }
 }
 
+// ==================== DATA MANAGEMENT ====================
 class DataManagementScreen extends StatelessWidget {
   const DataManagementScreen({Key? key}) : super(key: key);
 
@@ -761,6 +844,7 @@ class DataManagementScreen extends StatelessWidget {
   }
 }
 
+// ==================== ACCOUNT CARD ====================
 class AccountCard extends StatefulWidget {
   final Map<String, dynamic> account;
   final int index;
@@ -971,57 +1055,57 @@ class _AccountCardState extends State<AccountCard> {
             ),
 
           if (acc['a2f'] == 1 && acc['secret_key'] != null)
-		  Padding(
-		    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-		    child: Container(
-		      padding: const EdgeInsets.all(16),
-		      decoration: BoxDecoration(
-		        color: const Color(0xFFF8FAFC),
-		        border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
-		        borderRadius: BorderRadius.circular(12),
-		      ),
-		      child: Row(
-		        children: [
-		          Expanded(
-		            child: Column(
-		              crossAxisAlignment: CrossAxisAlignment.start,
-		              children: [
-		                const Text('2-FACTOR CODE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black54, letterSpacing: 0.5)),
-		                const SizedBox(height: 4),
-		                Text(
-		                  _getTotp(),
-		                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFDC2626), letterSpacing: 4),
-		                ),
-		                const SizedBox(height: 8),
-		                ClipRRect(
-		                  borderRadius: BorderRadius.circular(2),
-		                  child: LinearProgressIndicator(
-		                    value: widget.secondsRemaining / 30,
-		                    backgroundColor: Colors.black12,
-		                    color: const Color(0xFFDC2626),
-		                    minHeight: 3,
-		                  ),
-		                ),
-		                const SizedBox(height: 6),               // <-- jarak kecil
-		                Text(                                    // <-- teks detik ditambahkan
-		                  '${widget.secondsRemaining} detik',
-		                  style: const TextStyle(
-		                    fontSize: 12,
-		                    fontWeight: FontWeight.w600,
-		                    color: Colors.black54,
-		                  ),
-		                ),
-		              ],
-		            ),
-		          ),
-		          IconButton(
-		            icon: const Icon(Icons.copy_outlined, color: Colors.black54),
-		            onPressed: () => _copyToClipboard(_getTotp().replaceAll(' ', ''), 'Token 2FA'),
-		          )
-		        ],
-		      ),
-		    ),
-		  ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('2-FACTOR CODE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: Colors.black54, letterSpacing: 0.5)),
+                          const SizedBox(height: 4),
+                          Text(
+                            _getTotp(),
+                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFDC2626), letterSpacing: 4),
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(2),
+                            child: LinearProgressIndicator(
+                              value: widget.secondsRemaining / 30,
+                              backgroundColor: Colors.black12,
+                              color: const Color(0xFFDC2626),
+                              minHeight: 3,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '${widget.secondsRemaining} detik',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.copy_outlined, color: Colors.black54),
+                      onPressed: () => _copyToClipboard(_getTotp().replaceAll(' ', ''), 'Token 2FA'),
+                    )
+                  ],
+                ),
+              ),
+            ),
 
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -1096,6 +1180,7 @@ class _AccountCardState extends State<AccountCard> {
   }
 }
 
+// ==================== ACCOUNT FORM ====================
 class AccountFormScreen extends StatefulWidget {
   final Map<String, dynamic>? account;
   const AccountFormScreen({Key? key, this.account}) : super(key: key);
