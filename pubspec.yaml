@@ -1,4 +1,4 @@
-name: Account Manager
+name: account_manager
 description: A secure offline vault for managing your accounts.
 publish_to: 'none'
 version: 1.0.0+1
