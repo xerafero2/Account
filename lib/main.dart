@@ -844,7 +844,7 @@ class DataManagementScreen extends StatelessWidget {
   }
 }
 
-// ==================== ACCOUNT CARD ====================
+// ==================== ACCOUNT CARD (MODIFIED) ====================
 class AccountCard extends StatefulWidget {
   final Map<String, dynamic> account;
   final int index;
@@ -896,11 +896,47 @@ class _AccountCardState extends State<AccountCard> {
     return DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(isoString));
   }
 
+  // Fungsi untuk menampilkan dialog konfirmasi hapus
+  Future<void> _confirmDelete() async {
+    final acc = widget.account;
+    final String name = (acc['name']?.toString().isNotEmpty ?? false) ? acc['name'] : acc['identifier'];
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Akun?', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Anda yakin ingin menghapus akun "$name"?\nData yang dihapus tidak dapat dikembalikan.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await DatabaseHelper.instance.deleteAccount(acc['id']);
+      widget.onRefresh();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Akun berhasil dihapus')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final acc = widget.account;
     final List<String> tags = (acc['tags'] ?? '').toString().split(',').where((e) => e.trim().isNotEmpty).toList();
     final String displayName = (acc['name'] == null || acc['name'].toString().trim().isEmpty) ? 'AKUN' : acc['name'].toString().toUpperCase();
+    final themeColor = Theme.of(context).colorScheme.primary;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -926,7 +962,7 @@ class _AccountCardState extends State<AccountCard> {
                 _buildBadge(widget.index.toString(), isOutline: true),
                 if (acc['account_year'] != null && acc['account_year'].toString().isNotEmpty) ...[
                   const SizedBox(width: 8),
-                  _buildBadge(acc['account_year'], bgColor: Theme.of(context).colorScheme.primary.withOpacity(0.1), textColor: Theme.of(context).colorScheme.primary),
+                  _buildBadge(acc['account_year'], bgColor: themeColor.withOpacity(0.1), textColor: themeColor),
                 ],
                 const Spacer(),
                 Container(
@@ -954,12 +990,12 @@ class _AccountCardState extends State<AccountCard> {
                   height: 48,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: Theme.of(context).colorScheme.primary, width: 1.5),
+                    border: Border.all(color: themeColor, width: 1.5),
                   ),
                   child: ClipOval(
                     child: acc['avatar_path'] != null && acc['avatar_path'].toString().isNotEmpty
-                        ? Image.file(File(acc['avatar_path']), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary))
-                        : Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary),
+                        ? Image.file(File(acc['avatar_path']), fit: BoxFit.cover, errorBuilder: (_, __, ___) => Icon(Icons.person_outline, color: themeColor))
+                        : Icon(Icons.person_outline, color: themeColor),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1061,7 +1097,7 @@ class _AccountCardState extends State<AccountCard> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  border: Border.all(color: const Color(0xFF93C5FD), width: 1.5),
+                  border: Border.all(color: themeColor.withOpacity(0.5), width: 1.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -1074,26 +1110,44 @@ class _AccountCardState extends State<AccountCard> {
                           const SizedBox(height: 4),
                           Text(
                             _getTotp(),
-                            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFDC2626), letterSpacing: 4),
+                            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: themeColor, letterSpacing: 4),
                           ),
                           const SizedBox(height: 8),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(2),
-                            child: LinearProgressIndicator(
-                              value: widget.secondsRemaining / 30,
-                              backgroundColor: Colors.black12,
-                              color: const Color(0xFFDC2626),
-                              minHeight: 3,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '${widget.secondsRemaining} detik',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black54,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(2),
+                                  child: LinearProgressIndicator(
+                                    value: widget.secondsRemaining / 30,
+                                    backgroundColor: Colors.black12,
+                                    color: themeColor,
+                                    minHeight: 3,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              // Lingkaran detik
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: themeColor.withOpacity(0.1),
+                                  border: Border.all(color: themeColor, width: 1.5),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    '${widget.secondsRemaining}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: themeColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -1143,10 +1197,7 @@ class _AccountCardState extends State<AccountCard> {
                       decoration: BoxDecoration(color: const Color(0xFFFFE4E6), borderRadius: BorderRadius.circular(8)),
                       child: IconButton(
                         icon: const Icon(Icons.delete_outline, color: Color(0xFFE11D48)),
-                        onPressed: () async {
-                          await DatabaseHelper.instance.deleteAccount(acc['id']);
-                          widget.onRefresh();
-                        },
+                        onPressed: _confirmDelete,   // <-- menggunakan dialog konfirmasi
                       ),
                     )
                   ],
@@ -1180,7 +1231,7 @@ class _AccountCardState extends State<AccountCard> {
   }
 }
 
-// ==================== ACCOUNT FORM ====================
+// ==================== ACCOUNT FORM (TIDAK BERUBAH) ====================
 class AccountFormScreen extends StatefulWidget {
   final Map<String, dynamic>? account;
   const AccountFormScreen({Key? key, this.account}) : super(key: key);
