@@ -21,6 +21,20 @@ jobs:
       - name: Add Icon
         run: flutter pub run flutter_launcher_icons
         
+      - name: Set Package Name & Fix Directories
+        run: |
+          # Ganti applicationId
+          sed -i 's/applicationId ".*"/applicationId "com.securevault.accmanager"/' android/app/build.gradle
+          
+          # Hapus folder example jika ada
+          rm -rf android/app/src/main/kotlin/com/example
+          
+          # Buat struktur folder baru
+          mkdir -p android/app/src/main/kotlin/com/securevault/accmanager
+          
+          # Pindahkan MainActivity.kt ke folder baru
+          find android/app/src/main/kotlin -name "MainActivity.kt" -exec mv {} android/app/src/main/kotlin/com/securevault/accmanager/ \;
+          
       - name: Force Android SDK 36 (Brute Force Cache Patch)
         run: |
           echo "Patching App SDK..."
@@ -28,7 +42,6 @@ jobs:
           find android/ -type f -name "build.gradle*" -exec sed -i 's/flutter.targetSdkVersion/36/g' {} +
           
           echo "Patching All Plugins in Cache..."
-          # Mencari di direktori cache standar dan cache spesifik GitHub Actions
           CACHE_DIRS="$HOME/.pub-cache /opt/hostedtoolcache"
           for DIR in $CACHE_DIRS; do
             if [ -d "$DIR" ]; then
