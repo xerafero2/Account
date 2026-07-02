@@ -1070,10 +1070,10 @@ class _AccountCardState extends State<AccountCard> {
     await DatabaseHelper.instance.deleteAccount(acc['id']);
     widget.onRefresh();
     if (mounted) {
+      // SnackBar tanpa behavior khusus -> default fixed, sama seperti snackbar lainnya
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Akun dihapus'),
-          behavior: SnackBarBehavior.floating,   // <-- posisi standar di bawah
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           duration: const Duration(seconds: 2),
         ),
