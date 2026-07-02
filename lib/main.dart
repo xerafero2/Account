@@ -980,112 +980,107 @@ class _AccountCardState extends State<AccountCard> {
   }
 
   Future<void> _confirmDelete() async {
-    final acc = widget.account;
-    final String identifier = acc['identifier'];
-    final themeColor = Theme.of(context).colorScheme.primary;
+  final acc = widget.account;
+  final String identifier = acc['identifier'];
+  final themeColor = Theme.of(context).colorScheme.primary;
 
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 16,
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.warning_amber_rounded, color: themeColor, size: 36),
+  final bool? confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 16,
+      backgroundColor: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Hapus Akun?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                  letterSpacing: -0.5,
-                ),
+              child: Icon(Icons.warning_amber_rounded, color: themeColor, size: 36),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Hapus Akun?',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+                letterSpacing: -0.5,
               ),
-              const SizedBox(height: 12),
-              RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
-                  children: [
-                    const TextSpan(text: 'Anda yakin ingin menghapus akun '),
-                    TextSpan(
-                      text: '"$identifier"',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const TextSpan(text: '?\nData yang dihapus tidak dapat dikembalikan.'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
+            ),
+            const SizedBox(height: 12),
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black87,
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const TextSpan(text: 'Anda yakin ingin menghapus akun '),
+                  TextSpan(
+                    text: '"$identifier"',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
+                  const TextSpan(text: '?\nData yang dihapus tidak dapat dikembalikan.'),
                 ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.black87,
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.redAccent,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, true),
+                    child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
-    );
+    ),
+  );
 
-    if (confirm == true) {
-      await DatabaseHelper.instance.deleteAccount(acc['id']);
-      widget.onRefresh();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Akun dihapus'),
-            behavior: SnackBarBehavior.floating,
-            margin: EdgeInsets.only(
-              bottom: MediaQuery.of(context).size.height * 0.15, // agar di atas FAB
-              left: 24,
-              right: 24,
-            ),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
+  if (confirm == true) {
+    await DatabaseHelper.instance.deleteAccount(acc['id']);
+    widget.onRefresh();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Akun dihapus'),
+          behavior: SnackBarBehavior.floating,   // <-- posisi standar di bawah
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
     }
   }
+}
 
   @override
   Widget build(BuildContext context) {
