@@ -761,133 +761,97 @@ class DataManagementScreen extends StatelessWidget {
 
     return showDialog<void>(
       context: context,
-      builder: (ctx) => Dialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 16,
-        backgroundColor: Colors.white,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-        child: AnimatedPadding(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(ctx).viewInsets.bottom,
-          ),
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: themeColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.paste_outlined, color: themeColor, size: 36),
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Impor Akun',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    'Tempelkan data JSON yang telah disalin ke kolom di bawah ini.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
-                  ),
-                  const SizedBox(height: 20),
-                  TextField(
-                    controller: controller,
-                    maxLines: 8,
-                    decoration: InputDecoration(
-                      hintText: 'Tempel JSON di sini...',
-                      hintStyle: TextStyle(color: Colors.black26),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: themeColor, width: 1.5),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.black87,
-                            side: BorderSide(color: Colors.grey.shade300),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: themeColor,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          onPressed: () async {
-                            final text = controller.text.trim();
-                            if (text.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Masukkan data JSON terlebih dahulu')),
-                              );
-                              return;
-                            }
-                            try {
-                              dynamic decoded = jsonDecode(text);
-                              List<dynamic> jsonData;
-                              if (decoded is Map) {
-                                jsonData = [decoded];
-                              } else if (decoded is List) {
-                                jsonData = decoded;
-                              } else {
-                                throw FormatException();
-                              }
-                              await DatabaseHelper.instance.importAccounts(jsonData);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Data berhasil diimpor')),
-                                );
-                                Navigator.pop(ctx);
-                                Navigator.pop(context, true);
-                              }
-                            } catch (e) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Gagal: JSON tidak valid')),
-                                );
-                              }
-                            }
-                          },
-                          child: const Text('Impor', style: TextStyle(fontWeight: FontWeight.w600)),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
+              child: Icon(Icons.paste_outlined, color: themeColor, size: 28),
             ),
+            const SizedBox(width: 12),
+            const Text('Impor Akun', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tempelkan data JSON yang telah disalin ke kolom di bawah ini.',
+                style: TextStyle(color: Colors.black54, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                maxLines: 8,
+                decoration: InputDecoration(
+                  hintText: 'Tempel JSON di sini...',
+                  hintStyle: const TextStyle(color: Colors.black26),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: themeColor, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+                style: const TextStyle(fontSize: 14),
+              ),
+            ],
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: themeColor),
+            onPressed: () async {
+              final text = controller.text.trim();
+              if (text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Masukkan data JSON terlebih dahulu')),
+                );
+                return;
+              }
+              try {
+                dynamic decoded = jsonDecode(text);
+                List<dynamic> jsonData;
+                if (decoded is Map) {
+                  jsonData = [decoded];
+                } else if (decoded is List) {
+                  jsonData = decoded;
+                } else {
+                  throw FormatException();
+                }
+                await DatabaseHelper.instance.importAccounts(jsonData);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Data berhasil diimpor')),
+                  );
+                  Navigator.pop(ctx);
+                  Navigator.pop(context, true);
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Gagal: JSON tidak valid')),
+                  );
+                }
+              }
+            },
+            child: const Text('Impor'),
+          ),
+        ],
       ),
     );
   }
@@ -986,7 +950,7 @@ class _AccountCardState extends State<AccountCard> {
 
   void _copyAccountJson() {
     final Map<String, dynamic> acc = widget.account;
-    final jsonString = jsonEncode([acc]);  // array agar kompatibel dengan impor
+    final jsonString = jsonEncode([acc]);
     Clipboard.setData(ClipboardData(text: jsonString));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data akun disalin ke clipboard')));
   }
@@ -1108,12 +1072,12 @@ class _AccountCardState extends State<AccountCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Akun "$identifier" berhasil dihapus'),
+            content: const Text('Akun dihapus'),
             behavior: SnackBarBehavior.floating,
             margin: EdgeInsets.only(
-              bottom: MediaQuery.of(context).size.height - MediaQuery.of(context).padding.top - kToolbarHeight - 120,
-              left: 16,
-              right: 16,
+              bottom: MediaQuery.of(context).size.height * 0.15, // agar di atas FAB
+              left: 24,
+              right: 24,
             ),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             duration: const Duration(seconds: 2),
@@ -1555,7 +1519,6 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
       behavior: HitTestBehavior.opaque,
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        resizeToAvoidBottomInset: true,  // pastikan area aman dari keyboard
         appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
