@@ -1,7 +1,8 @@
 name: Build Flutter APK
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,33 +11,36 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.x'
+          
+      - name: Initialize Android Platform & Set Package
+        run: flutter create --platforms=android --org com.securevault --project-name accmanager .
+        
+      - name: Get Dependencies
+        run: flutter pub get
 
-      - name: Setup Android Platform & Dependencies
-        run: |
-          flutter create --platforms=android .
-          flutter pub get
-
-      - name: Generate App Icon
+      - name: Add Icon
         run: flutter pub run flutter_launcher_icons
-
-      - name: Set Package Name & Fix Directories
+        
+      - name: Force Android SDK 36 (Brute Force Cache Patch)
         run: |
-          if [ ! -f android/app/build.gradle ]; then
-            flutter create --platforms=android .
-          fi
-          sed -i 's/applicationId ".*"/applicationId "com.securevault.accmanager"/' android/app/build.gradle
-          rm -rf android/app/src/main/kotlin/com/example
-          mkdir -p android/app/src/main/kotlin/com/securevault/accmanager
-          find android/app/src/main/kotlin -name "MainActivity.kt" -exec mv {} android/app/src/main/kotlin/com/securevault/accmanager/ \; || true
-          if [ ! -f android/app/src/main/kotlin/com/securevault/accmanager/MainActivity.kt ]; then
-            echo 'package com.securevault.accmanager
-import io.flutter.embedding.android.FlutterActivity
-class MainActivity: FlutterActivity()' > android/app/src/main/kotlin/com/securevault/accmanager/MainActivity.kt
-          fi
-
-      - name: Force SDK 36 & Build
+          echo "Patching App SDK..."
+          find android/ -type f -name "build.gradle*" -exec sed -i 's/flutter.compileSdkVersion/36/g' {} +
+          find android/ -type f -name "build.gradle*" -exec sed -i 's/flutter.targetSdkVersion/36/g' {} +
+          
+          echo "Patching All Plugins in Cache..."
+          CACHE_DIRS="$HOME/.pub-cache /opt/hostedtoolcache"
+          for DIR in $CACHE_DIRS; do
+            if [ -d "$DIR" ]; then
+              echo "Scanning $DIR..."
+              find "$DIR" -type f -name "build.gradle*" -exec sed -i -E 's/compileSdkVersion [0-9]+/compileSdkVersion 36/g' {} +
+              find "$DIR" -type f -name "build.gradle*" -exec sed -i -E 's/compileSdk [0-9]+/compileSdk 36/g' {} +
+              find "$DIR" -type f -name "build.gradle*" -exec sed -i -E 's/compileSdk = [0-9]+/compileSdk = 36/g' {} +
+            fi
+          done
+          
+      - name: Build APK
         run: flutter build apk --release
-
+        
       - uses: actions/upload-artifact@v4
         with:
           name: release-apk
