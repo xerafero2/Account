@@ -631,6 +631,8 @@ class ThemeSelectionScreen extends StatelessWidget {
 class DataManagementScreen extends StatelessWidget {
   const DataManagementScreen({Key? key}) : super(key: key);
 
+  static const int maxExportCount = 500;
+
   Future<List<Map<String, dynamic>>> _prepareExportData() async {
     final data = await DatabaseHelper.instance.getAllAccounts();
     final enhancedData = <Map<String, dynamic>>[];
@@ -655,6 +657,10 @@ class DataManagementScreen extends StatelessWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada data untuk diekspor')));
         }
+        return;
+      }
+      if (data.length > maxExportCount) {
+        _showLimitDialog(context, data.length);
         return;
       }
 
@@ -691,6 +697,10 @@ class DataManagementScreen extends StatelessWidget {
         }
         return;
       }
+      if (data.length > maxExportCount) {
+        _showLimitDialog(context, data.length);
+        return;
+      }
       final jsonData = jsonEncode(data);
       await Clipboard.setData(ClipboardData(text: jsonData));
       if (context.mounted) {
@@ -701,6 +711,22 @@ class DataManagementScreen extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Gagal menyalin: $e')));
       }
     }
+  }
+
+  void _showLimitDialog(BuildContext context, int count) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Data Terlalu Besar'),
+        content: Text('Anda memiliki $count akun. Salin ke clipboard / ekspor file tidak disarankan untuk data sebesar ini.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _importFromFile(BuildContext context) async {
@@ -731,44 +757,127 @@ class DataManagementScreen extends StatelessWidget {
 
   Future<void> _showClipboardImportDialog(BuildContext context) async {
     final controller = TextEditingController();
+    final themeColor = Theme.of(context).colorScheme.primary;
+
     return showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Tempel JSON'),
-        content: TextField(
-          controller: controller,
-          maxLines: 8,
-          decoration: const InputDecoration(
-            hintText: 'Tempelkan JSON di sini...',
-            border: OutlineInputBorder(),
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 16,
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: themeColor.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.paste_outlined, color: themeColor, size: 36),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Impor Akun',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Tempelkan data JSON yang telah disalin ke kolom di bawah ini.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: controller,
+                maxLines: 8,
+                decoration: InputDecoration(
+                  hintText: 'Tempel JSON di sini...',
+                  hintStyle: TextStyle(color: Colors.black26),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: themeColor, width: 1.5),
+                  ),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+                style: const TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black87,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: themeColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () async {
+                        final text = controller.text.trim();
+                        if (text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Masukkan data JSON terlebih dahulu')),
+                          );
+                          return;
+                        }
+                        try {
+                          dynamic decoded = jsonDecode(text);
+                          List<dynamic> jsonData;
+                          if (decoded is Map) {
+                            jsonData = [decoded];
+                          } else if (decoded is List) {
+                            jsonData = decoded;
+                          } else {
+                            throw FormatException();
+                          }
+                          await DatabaseHelper.instance.importAccounts(jsonData);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Data berhasil diimpor')),
+                            );
+                            Navigator.pop(ctx);
+                            Navigator.pop(context, true);
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Gagal: JSON tidak valid')),
+                            );
+                          }
+                        }
+                      },
+                      child: const Text('Impor', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final text = controller.text.trim();
-              if (text.isEmpty) return;
-              try {
-                final List<dynamic> jsonData = jsonDecode(text);
-                await DatabaseHelper.instance.importAccounts(jsonData);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data berhasil diimpor dari clipboard')));
-                  Navigator.pop(ctx);
-                  Navigator.pop(context, true);
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal: JSON tidak valid')));
-                }
-              }
-            },
-            child: const Text('Impor'),
-          ),
-        ],
       ),
     );
   }
@@ -844,7 +953,7 @@ class DataManagementScreen extends StatelessWidget {
   }
 }
 
-// ==================== ACCOUNT CARD (DENGAN DIALOG HAPUS YANG RAPI) ====================
+// ==================== ACCOUNT CARD ====================
 class AccountCard extends StatefulWidget {
   final Map<String, dynamic> account;
   final int index;
@@ -867,7 +976,7 @@ class _AccountCardState extends State<AccountCard> {
 
   void _copyAccountJson() {
     final Map<String, dynamic> acc = widget.account;
-    final jsonString = jsonEncode(acc);
+    final jsonString = jsonEncode([acc]);  // array agar kompatibel dengan impor
     Clipboard.setData(ClipboardData(text: jsonString));
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data akun disalin ke clipboard')));
   }
@@ -896,10 +1005,10 @@ class _AccountCardState extends State<AccountCard> {
     return DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(isoString));
   }
 
-  // Dialog konfirmasi hapus yang baru
   Future<void> _confirmDelete() async {
     final acc = widget.account;
-    final String name = (acc['name']?.toString().isNotEmpty ?? false) ? acc['name'] : acc['identifier'];
+    final String identifier = acc['identifier'];
+    final themeColor = Theme.of(context).colorScheme.primary;
 
     final bool? confirm = await showDialog<bool>(
       context: context,
@@ -915,10 +1024,10 @@ class _AccountCardState extends State<AccountCard> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.red.shade50,
+                  color: themeColor.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 36),
+                child: Icon(Icons.warning_amber_rounded, color: themeColor, size: 36),
               ),
               const SizedBox(height: 20),
               Text(
@@ -938,7 +1047,7 @@ class _AccountCardState extends State<AccountCard> {
                   children: [
                     const TextSpan(text: 'Anda yakin ingin menghapus akun '),
                     TextSpan(
-                      text: '"$name"',
+                      text: '"$identifier"',
                       style: const TextStyle(
                         fontWeight: FontWeight.bold,
                         color: Colors.black87,
@@ -989,7 +1098,7 @@ class _AccountCardState extends State<AccountCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Akun "$name" berhasil dihapus'),
+            content: Text('Akun "$identifier" berhasil dihapus'),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
@@ -1263,7 +1372,7 @@ class _AccountCardState extends State<AccountCard> {
                       decoration: BoxDecoration(color: const Color(0xFFFFE4E6), borderRadius: BorderRadius.circular(8)),
                       child: IconButton(
                         icon: const Icon(Icons.delete_outline, color: Color(0xFFE11D48)),
-                        onPressed: _confirmDelete,   // menggunakan dialog konfirmasi
+                        onPressed: _confirmDelete,
                       ),
                     )
                   ],
