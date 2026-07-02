@@ -844,7 +844,7 @@ class DataManagementScreen extends StatelessWidget {
   }
 }
 
-// ==================== ACCOUNT CARD (MODIFIED) ====================
+// ==================== ACCOUNT CARD (DENGAN DIALOG HAPUS YANG RAPI) ====================
 class AccountCard extends StatefulWidget {
   final Map<String, dynamic> account;
   final int index;
@@ -896,29 +896,90 @@ class _AccountCardState extends State<AccountCard> {
     return DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(isoString));
   }
 
-  // Fungsi untuk menampilkan dialog konfirmasi hapus
+  // Dialog konfirmasi hapus yang baru
   Future<void> _confirmDelete() async {
     final acc = widget.account;
     final String name = (acc['name']?.toString().isNotEmpty ?? false) ? acc['name'] : acc['identifier'];
+
     final bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Akun?', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Text('Anda yakin ingin menghapus akun "$name"?\nData yang dihapus tidak dapat dikembalikan.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Batal'),
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 16,
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.warning_amber_rounded, color: Colors.red.shade700, size: 36),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Hapus Akun?',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              RichText(
+                textAlign: TextAlign.center,
+                text: TextSpan(
+                  style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
+                  children: [
+                    const TextSpan(text: 'Anda yakin ingin menghapus akun '),
+                    TextSpan(
+                      text: '"$name"',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const TextSpan(text: '?\nData yang dihapus tidak dapat dikembalikan.'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.black87,
+                        side: BorderSide(color: Colors.grey.shade300),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.redAccent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: Colors.redAccent,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Hapus'),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -926,7 +987,13 @@ class _AccountCardState extends State<AccountCard> {
       await DatabaseHelper.instance.deleteAccount(acc['id']);
       widget.onRefresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Akun berhasil dihapus')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Akun "$name" berhasil dihapus'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
       }
     }
   }
@@ -1127,7 +1194,6 @@ class _AccountCardState extends State<AccountCard> {
                                 ),
                               ),
                               const SizedBox(width: 10),
-                              // Lingkaran detik
                               Container(
                                 width: 28,
                                 height: 28,
@@ -1197,7 +1263,7 @@ class _AccountCardState extends State<AccountCard> {
                       decoration: BoxDecoration(color: const Color(0xFFFFE4E6), borderRadius: BorderRadius.circular(8)),
                       child: IconButton(
                         icon: const Icon(Icons.delete_outline, color: Color(0xFFE11D48)),
-                        onPressed: _confirmDelete,   // <-- menggunakan dialog konfirmasi
+                        onPressed: _confirmDelete,   // menggunakan dialog konfirmasi
                       ),
                     )
                   ],
@@ -1231,7 +1297,7 @@ class _AccountCardState extends State<AccountCard> {
   }
 }
 
-// ==================== ACCOUNT FORM (TIDAK BERUBAH) ====================
+// ==================== ACCOUNT FORM ====================
 class AccountFormScreen extends StatefulWidget {
   final Map<String, dynamic>? account;
   const AccountFormScreen({Key? key, this.account}) : super(key: key);
