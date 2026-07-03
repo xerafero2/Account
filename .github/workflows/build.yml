@@ -13,8 +13,11 @@ jobs:
           flutter-version: '3.x'
           
       - name: Initialize Android Platform & Set Package
-        run: flutter create --platforms=android --org com.securevault --project-name accmanager .
+        run: flutter create --platforms=android --org com.securevault --project-name accountmanager .
         
+      - name: Set Application Label
+        run: sed -i 's/android:label=".*"/android:label="Account Manager"/' android/app/src/main/AndroidManifest.xml
+
       - name: Get Dependencies
         run: flutter pub get
 
