@@ -1,4 +1,4 @@
-name: account_manager
+name: accountmanager
 description: A secure offline vault for managing your accounts.
 publish_to: 'none'
 version: 1.0.0+1
@@ -29,4 +29,4 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/icon/icon.png"   # siapkan file icon di folder assets/icon/
+  image_path: "assets/icon/icon.png"
