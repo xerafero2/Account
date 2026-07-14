@@ -89,8 +89,11 @@ class DatabaseHelper {
     String query = '',
     String sortOption = 'terbaru',
     List<String>? filterTags,
+    List<String>? filterPlatforms,
     bool? filter2FA,
     String? filterYear,
+    bool? filterHasAvatar,
+    bool? filterHasCustomIcon,
   }) async {
     final db = await instance.database;
 
@@ -110,6 +113,14 @@ class DatabaseHelper {
       }
     }
 
+    if (filterPlatforms != null && filterPlatforms.isNotEmpty) {
+      String platformConditions = filterPlatforms.map((_) => 'name = ?').join(' OR ');
+      whereClauses.add('($platformConditions)');
+      for (var p in filterPlatforms) {
+        whereArgs.add(p);
+      }
+    }
+
     if (filter2FA == true) {
       whereClauses.add('a2f = 1');
     }
@@ -117,6 +128,18 @@ class DatabaseHelper {
     if (filterYear != null && filterYear.isNotEmpty) {
       whereClauses.add('account_year = ?');
       whereArgs.add(filterYear);
+    }
+
+    if (filterHasAvatar == true) {
+      whereClauses.add("avatar_path IS NOT NULL AND avatar_path != ''");
+    } else if (filterHasAvatar == false) {
+      whereClauses.add("(avatar_path IS NULL OR avatar_path = '')");
+    }
+
+    if (filterHasCustomIcon == true) {
+      whereClauses.add("custom_icon_path IS NOT NULL AND custom_icon_path != ''");
+    } else if (filterHasCustomIcon == false) {
+      whereClauses.add("(custom_icon_path IS NULL OR custom_icon_path = '')");
     }
 
     String whereString = whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
@@ -311,8 +334,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   // Filter state
   List<String> _selectedTags = [];
+  List<String> _selectedPlatforms = [];
   bool _filter2FA = false;
   String _filterYear = '';
+  bool? _filterHasAvatar; // null = tidak filter, true = harus ada, false = harus tidak ada
+  bool? _filterHasCustomIcon;
+  bool _filterBirthdayMonth = false;
+
   final TextEditingController _yearFilterController = TextEditingController();
 
   @override
@@ -354,19 +382,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return tags.toList()..sort();
   }
 
+  Future<List<String>> _getAllPlatforms() async {
+    final db = await DatabaseHelper.instance.database;
+    final result = await db.rawQuery(
+      'SELECT DISTINCT name FROM accounts WHERE name IS NOT NULL AND name != ""',
+    );
+    return result.map((row) => row['name'] as String).toList()..sort();
+  }
+
   Future<void> _refreshAccounts() async {
     final data = await DatabaseHelper.instance.fetchAccounts(
       query: _searchQuery,
       sortOption: _sortOption,
       filterTags: _selectedTags.isNotEmpty ? _selectedTags : null,
+      filterPlatforms: _selectedPlatforms.isNotEmpty ? _selectedPlatforms : null,
       filter2FA: _filter2FA ? true : null,
       filterYear: _filterYear.isNotEmpty ? _filterYear : null,
+      filterHasAvatar: _filterHasAvatar,
+      filterHasCustomIcon: _filterHasCustomIcon,
     );
-    if (mounted) setState(() { _accounts = data; });
+
+    if (_filterBirthdayMonth) {
+      final currentMonth = DateTime.now().month;
+      final filtered = data.where((acc) {
+        final dob = acc['dob'] as String?;
+        if (dob == null || dob.isEmpty) return false;
+        // Coba ekstrak bulan dari format umum seperti "yyyy-MM-dd" atau "dd/MM/yyyy"
+        try {
+          DateTime? parsed;
+          if (dob.contains('-')) {
+            parsed = DateTime.tryParse(dob);
+          } else if (dob.contains('/')) {
+            final parts = dob.split('/');
+            if (parts.length == 3) {
+              // Asumsi dd/MM/yyyy
+              parsed = DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
+            }
+          }
+          return parsed?.month == currentMonth;
+        } catch (_) {
+          return false;
+        }
+      }).toList();
+      if (mounted) setState(() { _accounts = filtered; });
+    } else {
+      if (mounted) setState(() { _accounts = data; });
+    }
   }
 
-  void _showFilterSheet(BuildContext context) async {
+  void _showUnifiedFilterSheet(BuildContext context) async {
     final allTags = await _getAllTags();
+    final allPlatforms = await _getAllPlatforms();
     if (!mounted) return;
 
     showModalBottomSheet(
@@ -378,109 +444,246 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
+            final themeColor = Theme.of(context).colorScheme.primary;
             return Padding(
               padding: EdgeInsets.only(
                 left: 20, right: 20,
                 top: 20,
                 bottom: MediaQuery.of(context).viewInsets.bottom + 20,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text('Filter Akun', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {
-                          setSheetState(() {
-                            _selectedTags.clear();
-                            _filter2FA = false;
-                            _yearFilterController.clear();
-                            _filterYear = '';
-                          });
-                        },
-                        child: const Text('Reset'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('Tag', style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: allTags.map((tag) {
-                      final selected = _selectedTags.contains(tag);
-                      return FilterChip(
-                        label: Text(tag),
-                        selected: selected,
-                        selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
-                        checkmarkColor: Theme.of(context).colorScheme.primary,
-                        onSelected: (val) {
-                          setSheetState(() {
-                            if (val) {
-                              _selectedTags.add(tag);
-                            } else {
-                              _selectedTags.remove(tag);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 20),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Hanya akun dengan 2FA'),
-                    value: _filter2FA,
-                    activeColor: Theme.of(context).colorScheme.primary,
-                    onChanged: (val) {
-                      setSheetState(() => _filter2FA = val);
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _yearFilterController,
-                    decoration: InputDecoration(
-                      labelText: 'Tahun Akun',
-                      hintText: 'contoh: 2022',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      suffixIcon: _filterYear.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _yearFilterController.clear();
-                                setSheetState(() => _filterYear = '');
-                              },
-                            )
-                          : null,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Judul
+                    Row(
+                      children: [
+                        const Text('Filter & Urutkan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () {
+                            setSheetState(() {
+                              _selectedTags.clear();
+                              _selectedPlatforms.clear();
+                              _filter2FA = false;
+                              _yearFilterController.clear();
+                              _filterYear = '';
+                              _filterHasAvatar = null;
+                              _filterHasCustomIcon = null;
+                              _filterBirthdayMonth = false;
+                              _sortOption = 'terbaru';
+                            });
+                          },
+                          child: const Text('Reset Semua'),
+                        ),
+                      ],
                     ),
-                    keyboardType: TextInputType.number,
-                    onChanged: (val) {
-                      _filterYear = val.trim();
-                      setSheetState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    const SizedBox(height: 16),
+
+                    // Bagian Urutkan
+                    const Text('Urutkan', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      children: [
+                        ChoiceChip(
+                          label: const Text('Terbaru'),
+                          selected: _sortOption == 'terbaru',
+                          selectedColor: themeColor.withOpacity(0.2),
+                          onSelected: (_) => setSheetState(() => _sortOption = 'terbaru'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Terlama'),
+                          selected: _sortOption == 'terlama',
+                          selectedColor: themeColor.withOpacity(0.2),
+                          onSelected: (_) => setSheetState(() => _sortOption = 'terlama'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Platform A-Z'),
+                          selected: _sortOption == 'platform-az',
+                          selectedColor: themeColor.withOpacity(0.2),
+                          onSelected: (_) => setSheetState(() => _sortOption = 'platform-az'),
+                        ),
+                        ChoiceChip(
+                          label: const Text('Username A-Z'),
+                          selected: _sortOption == 'username-az',
+                          selectedColor: themeColor.withOpacity(0.2),
+                          onSelected: (_) => setSheetState(() => _sortOption = 'username-az'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Bagian Filter Platform
+                    const Text('Platform', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: allPlatforms.map((platform) {
+                        final selected = _selectedPlatforms.contains(platform);
+                        return FilterChip(
+                          label: Text(platform),
+                          selected: selected,
+                          selectedColor: themeColor.withOpacity(0.2),
+                          checkmarkColor: themeColor,
+                          onSelected: (val) {
+                            setSheetState(() {
+                              if (val) {
+                                _selectedPlatforms.add(platform);
+                              } else {
+                                _selectedPlatforms.remove(platform);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Bagian Tag
+                    const Text('Tag', style: TextStyle(fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: allTags.map((tag) {
+                        final selected = _selectedTags.contains(tag);
+                        return FilterChip(
+                          label: Text(tag),
+                          selected: selected,
+                          selectedColor: themeColor.withOpacity(0.2),
+                          checkmarkColor: themeColor,
+                          onSelected: (val) {
+                            setSheetState(() {
+                              if (val) {
+                                _selectedTags.add(tag);
+                              } else {
+                                _selectedTags.remove(tag);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Filter 2FA
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Hanya akun dengan 2FA'),
+                      value: _filter2FA,
+                      activeColor: themeColor,
+                      onChanged: (val) => setSheetState(() => _filter2FA = val),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Tahun Akun
+                    TextField(
+                      controller: _yearFilterController,
+                      decoration: InputDecoration(
+                        labelText: 'Tahun Akun',
+                        hintText: 'contoh: 2022',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        suffixIcon: _filterYear.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _yearFilterController.clear();
+                                  setSheetState(() => _filterYear = '');
+                                },
+                              )
+                            : null,
                       ),
-                      onPressed: () {
-                        Navigator.pop(sheetContext);
-                        _refreshAccounts();
+                      keyboardType: TextInputType.number,
+                      onChanged: (val) {
+                        _filterYear = val.trim();
+                        setSheetState(() {});
                       },
-                      child: const Text('Terapkan Filter', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+
+                    // Filter Avatar
+                    Row(
+                      children: [
+                        const Text('Avatar', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        ChoiceChip(
+                          label: const Text('Semua'),
+                          selected: _filterHasAvatar == null,
+                          onSelected: (_) => setSheetState(() => _filterHasAvatar = null),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('Ada'),
+                          selected: _filterHasAvatar == true,
+                          onSelected: (_) => setSheetState(() => _filterHasAvatar = true),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('Tidak'),
+                          selected: _filterHasAvatar == false,
+                          onSelected: (_) => setSheetState(() => _filterHasAvatar = false),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Filter Ikon Kustom
+                    Row(
+                      children: [
+                        const Text('Ikon Kustom', style: TextStyle(fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        ChoiceChip(
+                          label: const Text('Semua'),
+                          selected: _filterHasCustomIcon == null,
+                          onSelected: (_) => setSheetState(() => _filterHasCustomIcon = null),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('Ada'),
+                          selected: _filterHasCustomIcon == true,
+                          onSelected: (_) => setSheetState(() => _filterHasCustomIcon = true),
+                        ),
+                        const SizedBox(width: 8),
+                        ChoiceChip(
+                          label: const Text('Tidak'),
+                          selected: _filterHasCustomIcon == false,
+                          onSelected: (_) => setSheetState(() => _filterHasCustomIcon = false),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Filter Ulang Tahun Bulan Ini
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Ulang tahun bulan ini'),
+                      value: _filterBirthdayMonth,
+                      activeColor: themeColor,
+                      onChanged: (val) => setSheetState(() => _filterBirthdayMonth = val),
+                    ),
+
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: themeColor,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(sheetContext);
+                          _refreshAccounts();
+                        },
+                        child: const Text('Terapkan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -542,7 +745,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildCleanHeader(BuildContext context) {
     final themeColor = Theme.of(context).colorScheme.primary;
-    final hasFilter = _selectedTags.isNotEmpty || _filter2FA || _filterYear.isNotEmpty;
+    final hasFilter = _selectedTags.isNotEmpty ||
+        _selectedPlatforms.isNotEmpty ||
+        _filter2FA ||
+        _filterYear.isNotEmpty ||
+        _filterHasAvatar != null ||
+        _filterHasCustomIcon != null ||
+        _filterBirthdayMonth;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
@@ -629,79 +838,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              // Tombol Filter
+              // Tombol Filter & Urutkan (dengan teks)
               Container(
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: hasFilter ? themeColor.withOpacity(0.1) : Colors.white,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black.withOpacity(0.1)),
+                  border: Border.all(color: hasFilter ? themeColor : Colors.black.withOpacity(0.1)),
                 ),
-                child: IconButton(
-                  icon: Icon(Icons.filter_list, color: hasFilter ? themeColor : Colors.black54),
-                  onPressed: () => _showFilterSheet(context),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Tombol Sort
-              Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.black.withOpacity(0.1)),
-                ),
-                child: PopupMenuButton<String>(
-                  icon: Icon(Icons.tune, color: themeColor),
-                  tooltip: 'Urutkan Akun',
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  position: PopupMenuPosition.under,
-                  onSelected: (value) {
-                    setState(() { _sortOption = value; });
-                    _refreshAccounts();
-                  },
-                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                    PopupMenuItem<String>(
-                      value: 'terbaru',
-                      child: Row(
-                        children: [
-                          Icon(Icons.access_time, size: 20, color: _sortOption == 'terbaru' ? themeColor : Colors.black54),
-                          const SizedBox(width: 12),
-                          Text('Terbaru Ditambahkan', style: TextStyle(fontWeight: _sortOption == 'terbaru' ? FontWeight.bold : FontWeight.normal, color: _sortOption == 'terbaru' ? themeColor : Colors.black87)),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'terlama',
-                      child: Row(
-                        children: [
-                          Icon(Icons.history, size: 20, color: _sortOption == 'terlama' ? themeColor : Colors.black54),
-                          const SizedBox(width: 12),
-                          Text('Terlama Ditambahkan', style: TextStyle(fontWeight: _sortOption == 'terlama' ? FontWeight.bold : FontWeight.normal, color: _sortOption == 'terlama' ? themeColor : Colors.black87)),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'platform-az',
-                      child: Row(
-                        children: [
-                          Icon(Icons.sort_by_alpha, size: 20, color: _sortOption == 'platform-az' ? themeColor : Colors.black54),
-                          const SizedBox(width: 12),
-                          Text('Abjad Platform', style: TextStyle(fontWeight: _sortOption == 'platform-az' ? FontWeight.bold : FontWeight.normal, color: _sortOption == 'platform-az' ? themeColor : Colors.black87)),
-                        ],
-                      ),
-                    ),
-                    PopupMenuItem<String>(
-                      value: 'username-az',
-                      child: Row(
-                        children: [
-                          Icon(Icons.sort_by_alpha, size: 20, color: _sortOption == 'username-az' ? themeColor : Colors.black54),
-                          const SizedBox(width: 12),
-                          Text('Abjad Username', style: TextStyle(fontWeight: _sortOption == 'username-az' ? FontWeight.bold : FontWeight.normal, color: _sortOption == 'username-az' ? themeColor : Colors.black87)),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: hasFilter ? themeColor : Colors.black87,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  icon: Icon(Icons.filter_list, size: 20, color: hasFilter ? themeColor : Colors.black54),
+                  label: const Text('Filter & Sort'),
+                  onPressed: () => _showUnifiedFilterSheet(context),
                 ),
               ),
             ],
