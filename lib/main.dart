@@ -85,31 +85,59 @@ class DatabaseHelper {
     return await db.update('accounts', row, where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<List<Map<String, dynamic>>> fetchAccounts({String query = '', String sortOption = 'terbaru'}) async {
-    try {
-      final db = await instance.database;
-      String orderBy = 'updated_at DESC';
+  Future<List<Map<String, dynamic>>> fetchAccounts({
+    String query = '',
+    String sortOption = 'terbaru',
+    List<String>? filterTags,
+    bool? filter2FA,
+    String? filterYear,
+  }) async {
+    final db = await instance.database;
 
-      if (sortOption == 'terlama') {
-        orderBy = 'updated_at ASC';
-      } else if (sortOption == 'a-z') {
-        orderBy = 'name COLLATE NOCASE ASC';
-      }
+    List<String> whereClauses = [];
+    List<dynamic> whereArgs = [];
 
-      if (query.isEmpty) {
-        return await db.query('accounts', orderBy: orderBy);
-      } else {
-        return await db.query(
-          'accounts',
-          where: 'name LIKE ? OR identifier LIKE ? OR tags LIKE ?',
-          whereArgs: ['%$query%', '%$query%', '%$query%'],
-          orderBy: orderBy,
-        );
-      }
-    } catch (e) {
-      debugPrint('ERROR fetching accounts: $e');
-      return [];
+    if (query.isNotEmpty) {
+      whereClauses.add('(name LIKE ? OR identifier LIKE ? OR tags LIKE ?)');
+      whereArgs.addAll(['%$query%', '%$query%', '%$query%']);
     }
+
+    if (filterTags != null && filterTags.isNotEmpty) {
+      String tagConditions = filterTags.map((_) => 'tags LIKE ?').join(' OR ');
+      whereClauses.add('($tagConditions)');
+      for (var tag in filterTags) {
+        whereArgs.add('%$tag%');
+      }
+    }
+
+    if (filter2FA == true) {
+      whereClauses.add('a2f = 1');
+    }
+
+    if (filterYear != null && filterYear.isNotEmpty) {
+      whereClauses.add('account_year = ?');
+      whereArgs.add(filterYear);
+    }
+
+    String whereString = whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
+
+    String orderBy;
+    switch (sortOption) {
+      case 'terlama':
+        orderBy = 'updated_at ASC';
+        break;
+      case 'platform-az':
+        orderBy = 'name COLLATE NOCASE ASC';
+        break;
+      case 'username-az':
+        orderBy = 'identifier COLLATE NOCASE ASC';
+        break;
+      default: // 'terbaru'
+        orderBy = 'updated_at DESC';
+    }
+
+    final sql = 'SELECT * FROM accounts $whereString ORDER BY $orderBy';
+    return await db.rawQuery(sql, whereArgs);
   }
 
   Future<int> deleteAccount(int id) async {
@@ -281,6 +309,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _searchQuery = '';
   String _sortOption = 'terbaru';
 
+  // Filter state
+  List<String> _selectedTags = [];
+  bool _filter2FA = false;
+  String _filterYear = '';
+  final TextEditingController _yearFilterController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
@@ -292,6 +326,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _globalTimer?.cancel();
     _searchController.dispose();
+    _yearFilterController.dispose();
     super.dispose();
   }
 
@@ -306,9 +341,152 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  Future<List<String>> _getAllTags() async {
+    final db = await DatabaseHelper.instance.database;
+    final result = await db.rawQuery(
+      'SELECT DISTINCT tags FROM accounts WHERE tags IS NOT NULL AND tags != ""',
+    );
+    Set<String> tags = {};
+    for (var row in result) {
+      String raw = row['tags'] as String;
+      tags.addAll(raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
+    }
+    return tags.toList()..sort();
+  }
+
   Future<void> _refreshAccounts() async {
-    final data = await DatabaseHelper.instance.fetchAccounts(query: _searchQuery, sortOption: _sortOption);
+    final data = await DatabaseHelper.instance.fetchAccounts(
+      query: _searchQuery,
+      sortOption: _sortOption,
+      filterTags: _selectedTags.isNotEmpty ? _selectedTags : null,
+      filter2FA: _filter2FA ? true : null,
+      filterYear: _filterYear.isNotEmpty ? _filterYear : null,
+    );
     if (mounted) setState(() { _accounts = data; });
+  }
+
+  void _showFilterSheet(BuildContext context) async {
+    final allTags = await _getAllTags();
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20, right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Text('Filter Akun', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      TextButton(
+                        onPressed: () {
+                          setSheetState(() {
+                            _selectedTags.clear();
+                            _filter2FA = false;
+                            _yearFilterController.clear();
+                            _filterYear = '';
+                          });
+                        },
+                        child: const Text('Reset'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Tag', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: allTags.map((tag) {
+                      final selected = _selectedTags.contains(tag);
+                      return FilterChip(
+                        label: Text(tag),
+                        selected: selected,
+                        selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                        checkmarkColor: Theme.of(context).colorScheme.primary,
+                        onSelected: (val) {
+                          setSheetState(() {
+                            if (val) {
+                              _selectedTags.add(tag);
+                            } else {
+                              _selectedTags.remove(tag);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Hanya akun dengan 2FA'),
+                    value: _filter2FA,
+                    activeColor: Theme.of(context).colorScheme.primary,
+                    onChanged: (val) {
+                      setSheetState(() => _filter2FA = val);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _yearFilterController,
+                    decoration: InputDecoration(
+                      labelText: 'Tahun Akun',
+                      hintText: 'contoh: 2022',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      suffixIcon: _filterYear.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _yearFilterController.clear();
+                                setSheetState(() => _filterYear = '');
+                              },
+                            )
+                          : null,
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (val) {
+                      _filterYear = val.trim();
+                      setSheetState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () {
+                        Navigator.pop(sheetContext);
+                        _refreshAccounts();
+                      },
+                      child: const Text('Terapkan Filter', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -364,7 +542,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildCleanHeader(BuildContext context) {
     final themeColor = Theme.of(context).colorScheme.primary;
-    
+    final hasFilter = _selectedTags.isNotEmpty || _filter2FA || _filterYear.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
       decoration: BoxDecoration(
@@ -450,6 +629,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(width: 12),
+              // Tombol Filter
+              Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.black.withOpacity(0.1)),
+                ),
+                child: IconButton(
+                  icon: Icon(Icons.filter_list, color: hasFilter ? themeColor : Colors.black54),
+                  onPressed: () => _showFilterSheet(context),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Tombol Sort
               Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -488,12 +682,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                     PopupMenuItem<String>(
-                      value: 'a-z',
+                      value: 'platform-az',
                       child: Row(
                         children: [
-                          Icon(Icons.sort_by_alpha, size: 20, color: _sortOption == 'a-z' ? themeColor : Colors.black54),
+                          Icon(Icons.sort_by_alpha, size: 20, color: _sortOption == 'platform-az' ? themeColor : Colors.black54),
                           const SizedBox(width: 12),
-                          Text('Abjad (A - Z)', style: TextStyle(fontWeight: _sortOption == 'a-z' ? FontWeight.bold : FontWeight.normal, color: _sortOption == 'a-z' ? themeColor : Colors.black87)),
+                          Text('Abjad Platform', style: TextStyle(fontWeight: _sortOption == 'platform-az' ? FontWeight.bold : FontWeight.normal, color: _sortOption == 'platform-az' ? themeColor : Colors.black87)),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<String>(
+                      value: 'username-az',
+                      child: Row(
+                        children: [
+                          Icon(Icons.sort_by_alpha, size: 20, color: _sortOption == 'username-az' ? themeColor : Colors.black54),
+                          const SizedBox(width: 12),
+                          Text('Abjad Username', style: TextStyle(fontWeight: _sortOption == 'username-az' ? FontWeight.bold : FontWeight.normal, color: _sortOption == 'username-az' ? themeColor : Colors.black87)),
                         ],
                       ),
                     ),
@@ -631,7 +835,6 @@ class ThemeSelectionScreen extends StatelessWidget {
 class DataManagementScreen extends StatelessWidget {
   const DataManagementScreen({Key? key}) : super(key: key);
 
-  // Batasan hanya untuk clipboard
   static const int maxClipboardExport = 100;
 
   Future<List<Map<String, dynamic>>> _prepareExportData() async {
