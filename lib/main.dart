@@ -631,7 +631,8 @@ class ThemeSelectionScreen extends StatelessWidget {
 class DataManagementScreen extends StatelessWidget {
   const DataManagementScreen({Key? key}) : super(key: key);
 
-  static const int maxExportCount = 500;
+  // Batasan hanya untuk clipboard
+  static const int maxClipboardExport = 100;
 
   Future<List<Map<String, dynamic>>> _prepareExportData() async {
     final data = await DatabaseHelper.instance.getAllAccounts();
@@ -657,10 +658,6 @@ class DataManagementScreen extends StatelessWidget {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Tidak ada data untuk diekspor')));
         }
-        return;
-      }
-      if (data.length > maxExportCount) {
-        _showLimitDialog(context, data.length);
         return;
       }
 
@@ -697,8 +694,8 @@ class DataManagementScreen extends StatelessWidget {
         }
         return;
       }
-      if (data.length > maxExportCount) {
-        _showLimitDialog(context, data.length);
+      if (data.length > maxClipboardExport) {
+        _showClipboardLimitDialog(context, data.length);
         return;
       }
       final jsonData = jsonEncode(data);
@@ -713,12 +710,30 @@ class DataManagementScreen extends StatelessWidget {
     }
   }
 
-  void _showLimitDialog(BuildContext context, int count) {
+  void _showClipboardLimitDialog(BuildContext context, int count) {
+    final themeColor = Theme.of(context).colorScheme.primary;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Data Terlalu Besar'),
-        content: Text('Anda memiliki $count akun. Salin ke clipboard / ekspor file tidak disarankan untuk data sebesar ini.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.warning_amber_rounded, color: themeColor, size: 28),
+            ),
+            const SizedBox(width: 12),
+            const Text('Data Terlalu Besar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+          ],
+        ),
+        content: Text(
+          'Anda memiliki $count akun. Salin ke clipboard hanya mendukung maksimal $maxClipboardExport akun.',
+          style: const TextStyle(color: Colors.black87),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
@@ -888,7 +903,7 @@ class DataManagementScreen extends StatelessWidget {
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   leading: const CircleAvatar(backgroundColor: Color(0xFFF8F9FA), child: Icon(Icons.copy_outlined, color: Colors.black87)),
                   title: const Text('Salin JSON ke Clipboard', style: TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: const Text('Salin seluruh data dalam format JSON', style: TextStyle(fontSize: 12)),
+                  subtitle: const Text('Salin seluruh data dalam format JSON (maks 100 akun)', style: TextStyle(fontSize: 12)),
                   onTap: () => _copyJsonToClipboard(context),
                 ),
               ],
@@ -976,7 +991,7 @@ class _AccountCardState extends State<AccountCard> {
 
   String _formatDate(String? isoString) {
     if (isoString == null || isoString.isEmpty) return 'Tidak tersedia';
-    return DateFormat('dd/MM/yyyy HH:mm').format(DateTime.parse(isoString));
+    return DateFormat('dd/MM/yyyy HH:mm:ss').format(DateTime.parse(isoString));
   }
 
   Future<void> _confirmDelete() async {
@@ -986,83 +1001,49 @@ class _AccountCardState extends State<AccountCard> {
 
     final bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => Dialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 16,
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: themeColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.warning_amber_rounded, color: themeColor, size: 28),
+            ),
+            const SizedBox(width: 12),
+            const Text('Hapus Akun?', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+          ],
+        ),
+        content: RichText(
+          text: TextSpan(
+            style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: themeColor.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(Icons.warning_amber_rounded, color: themeColor, size: 36),
+              const TextSpan(text: 'Anda yakin ingin menghapus akun '),
+              TextSpan(
+                text: '"$identifier"',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
               ),
-              const SizedBox(height: 20),
-              Text(
-                'Hapus Akun?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 12),
-              RichText(
-                textAlign: TextAlign.center,
-                text: TextSpan(
-                  style: TextStyle(fontSize: 14, color: Colors.black54, height: 1.4),
-                  children: [
-                    const TextSpan(text: 'Anda yakin ingin menghapus akun '),
-                    TextSpan(
-                      text: '"$identifier"',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const TextSpan(text: '?\nData yang dihapus tidak dapat dikembalikan.'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.black87,
-                        side: BorderSide(color: Colors.grey.shade300),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                ],
-              ),
+              const TextSpan(text: '?\nData yang dihapus tidak dapat dikembalikan.'),
             ],
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
       ),
     );
 
@@ -1071,9 +1052,9 @@ class _AccountCardState extends State<AccountCard> {
       widget.onRefresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Akun dihapus'),
-            duration: Duration(seconds: 2),
+          SnackBar(
+            content: Text('Akun "$identifier" dihapus'),
+            duration: const Duration(seconds: 2),
           ),
         );
       }
@@ -1457,13 +1438,13 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
 
     if (isA2fEnabled) {
       if (secretKey.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal: Secret Key tidak boleh kosong saat A2F aktif')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Secret Key 2FA tidak boleh kosong')));
         return;
       }
       try {
         OTP.generateTOTPCodeString(secretKey, DateTime.now().millisecondsSinceEpoch, algorithm: Algorithm.SHA1, isGoogle: true);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Gagal: Secret Key 2FA tidak valid')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Secret Key 2FA tidak valid')));
         return;
       }
     }
@@ -1654,7 +1635,7 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
                 ],
               ),
               const SizedBox(height: 16),
-              _buildTextField(controller: _tagsController, hint: 'Kategori / Game (pisahkan koma)', icon: Icons.sports_esports_outlined),
+              _buildTextField(controller: _tagsController, hint: 'Tag (pisahkan koma)', icon: Icons.sports_esports_outlined),
               const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(16),
