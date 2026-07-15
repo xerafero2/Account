@@ -163,6 +163,12 @@ class DatabaseHelper {
     return await db.rawQuery(sql, whereArgs);
   }
 
+  Future<int> getTotalAccountCount() async {
+    final db = await instance.database;
+    final result = await db.rawQuery('SELECT COUNT(*) as count FROM accounts');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
   Future<int> deleteAccount(int id) async {
     final db = await instance.database;
     return await db.delete('accounts', where: 'id = ?', whereArgs: [id]);
@@ -325,6 +331,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _accounts = [];
+  int _totalAccounts = 0; // total akun di database tanpa filter
   Timer? _globalTimer;
   int _secondsRemaining = 30;
 
@@ -337,11 +344,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<String> _selectedPlatforms = [];
   bool _filter2FA = false;
   String _filterYear = '';
-  bool? _filterHasAvatar; // null = tidak filter, true = harus ada, false = harus tidak ada
+  bool? _filterHasAvatar;
   bool? _filterHasCustomIcon;
-  bool _filterBirthdayMonth = false;
 
   final TextEditingController _yearFilterController = TextEditingController();
+
+  bool get _isAnyFilterActive =>
+      _searchQuery.isNotEmpty ||
+      _selectedTags.isNotEmpty ||
+      _selectedPlatforms.isNotEmpty ||
+      _filter2FA ||
+      _filterYear.isNotEmpty ||
+      _filterHasAvatar != null ||
+      _filterHasCustomIcon != null;
 
   @override
   void initState() {
@@ -391,6 +406,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _refreshAccounts() async {
+    // Ambil total akun tanpa filter
+    final total = await DatabaseHelper.instance.getTotalAccountCount();
+
+    // Ambil data terfilter
     final data = await DatabaseHelper.instance.fetchAccounts(
       query: _searchQuery,
       sortOption: _sortOption,
@@ -402,31 +421,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       filterHasCustomIcon: _filterHasCustomIcon,
     );
 
-    if (_filterBirthdayMonth) {
-      final currentMonth = DateTime.now().month;
-      final filtered = data.where((acc) {
-        final dob = acc['dob'] as String?;
-        if (dob == null || dob.isEmpty) return false;
-        // Coba ekstrak bulan dari format umum seperti "yyyy-MM-dd" atau "dd/MM/yyyy"
-        try {
-          DateTime? parsed;
-          if (dob.contains('-')) {
-            parsed = DateTime.tryParse(dob);
-          } else if (dob.contains('/')) {
-            final parts = dob.split('/');
-            if (parts.length == 3) {
-              // Asumsi dd/MM/yyyy
-              parsed = DateTime.tryParse('${parts[2]}-${parts[1]}-${parts[0]}');
-            }
-          }
-          return parsed?.month == currentMonth;
-        } catch (_) {
-          return false;
-        }
-      }).toList();
-      if (mounted) setState(() { _accounts = filtered; });
-    } else {
-      if (mounted) setState(() { _accounts = data; });
+    if (mounted) {
+      setState(() {
+        _totalAccounts = total;
+        _accounts = data;
+      });
     }
   }
 
@@ -471,7 +470,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               _filterYear = '';
                               _filterHasAvatar = null;
                               _filterHasCustomIcon = null;
-                              _filterBirthdayMonth = false;
                               _sortOption = 'terbaru';
                             });
                           },
@@ -655,16 +653,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-
-                    // Filter Ulang Tahun Bulan Ini
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Ulang tahun bulan ini'),
-                      value: _filterBirthdayMonth,
-                      activeColor: themeColor,
-                      onChanged: (val) => setSheetState(() => _filterBirthdayMonth = val),
-                    ),
 
                     const SizedBox(height: 24),
                     SizedBox(
@@ -706,7 +694,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: _accounts.isEmpty
                     ? Center(
                         child: Text(
-                          _searchQuery.isEmpty ? 'Belum ada akun yang disimpan' : 'Tidak ada akun yang cocok',
+                          _isAnyFilterActive ? 'Tidak ada akun ditemukan' : 'Belum ada akun yang disimpan',
                           style: const TextStyle(color: Colors.black38, fontWeight: FontWeight.w500),
                         ),
                       )
@@ -745,13 +733,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildCleanHeader(BuildContext context) {
     final themeColor = Theme.of(context).colorScheme.primary;
-    final hasFilter = _selectedTags.isNotEmpty ||
-        _selectedPlatforms.isNotEmpty ||
-        _filter2FA ||
-        _filterYear.isNotEmpty ||
-        _filterHasAvatar != null ||
-        _filterHasCustomIcon != null ||
-        _filterBirthdayMonth;
+    final hasFilter = _isAnyFilterActive;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
@@ -785,7 +767,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     const Text('Account Manager', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: -0.5)),
                     const SizedBox(height: 2),
-                    Text('${_accounts.length} Akun tersimpan', style: TextStyle(color: themeColor, fontWeight: FontWeight.bold, fontSize: 12)),
+                    Text(
+                      '$_totalAccounts Akun tersimpan',
+                      style: TextStyle(color: themeColor, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                    if (hasFilter)
+                      Text(
+                        'Menampilkan ${_accounts.length} akun',
+                        style: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
                   ],
                 ),
               ),
@@ -839,23 +829,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               const SizedBox(width: 12),
               // Tombol Filter & Urutkan (dengan teks)
-              Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  color: hasFilter ? themeColor.withOpacity(0.1) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: hasFilter ? themeColor : Colors.black.withOpacity(0.1)),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: hasFilter ? themeColor : Colors.black87,
+                  side: BorderSide(color: hasFilter ? themeColor : Colors.black.withOpacity(0.1)),
+                  backgroundColor: hasFilter ? themeColor.withOpacity(0.05) : Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                 ),
-                child: TextButton.icon(
-                  style: TextButton.styleFrom(
-                    foregroundColor: hasFilter ? themeColor : Colors.black87,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                  icon: Icon(Icons.filter_list, size: 20, color: hasFilter ? themeColor : Colors.black54),
-                  label: const Text('Filter & Sort'),
-                  onPressed: () => _showUnifiedFilterSheet(context),
-                ),
+                icon: Icon(Icons.filter_list, size: 20, color: hasFilter ? themeColor : Colors.black54),
+                label: const Text('Filter & Sort'),
+                onPressed: () => _showUnifiedFilterSheet(context),
               ),
             ],
           ),
