@@ -442,17 +442,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            final themeColor = Theme.of(context).colorScheme.primary;
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20, right: 20,
-                top: 20,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
+        // Gunakan SafeArea untuk menghindari navigation bar/gesture bar
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+            ),
+            child: StatefulBuilder(
+              builder: (context, setSheetState) {
+                final themeColor = Theme.of(context).colorScheme.primary;
+                return Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -657,10 +659,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                     ),
                   ],
-                ),
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         );
       },
     );
@@ -1838,6 +1840,9 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.account != null;
+    // Dinamis padding bawah untuk menghindari navigation bar / gesture bar
+    final bottomPadding = MediaQuery.of(context).padding.bottom + 20;
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => FocusScope.of(context).unfocus(),
@@ -1859,7 +1864,12 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
           ],
         ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 16,
+            bottom: bottomPadding, // area aman di bawah
+          ),
           child: Column(
             children: [
               Center(
@@ -2019,6 +2029,7 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
                   child: Text(isEdit ? 'Simpan Perubahan' : 'Simpan Akun Baru', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
+              // Tidak perlu SizedBox tambahan karena padding bawah SingleChildScrollView sudah mencakup area aman
             ],
           ),
         ),
