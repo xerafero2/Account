@@ -308,6 +308,15 @@ class AccountManagerApp extends StatelessWidget {
         return MaterialApp(
           title: 'Account Manager',
           debugShowCheckedModeBanner: false,
+          // Batasi skala teks sistem agar layout tidak rusak
+          builder: (context, child) {
+            final mediaQuery = MediaQuery.of(context);
+            final textScaler = mediaQuery.textScaler.clamp(maxScaleFactor: 1.2);
+            return MediaQuery(
+              data: mediaQuery.copyWith(textScaler: textScaler),
+              child: child!,
+            );
+          },
           theme: ThemeData(
             useMaterial3: true,
             scaffoldBackgroundColor: const Color(0xFFF4F6F9),
@@ -442,7 +451,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (sheetContext) {
-        // Gunakan SafeArea untuk menghindari navigation bar/gesture bar
         return SafeArea(
           child: SingleChildScrollView(
             padding: EdgeInsets.only(
@@ -458,10 +466,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Header tanpa Spacer, gunakan spaceBetween
                     Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Filter & Urutkan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const Spacer(),
+                        const Expanded(
+                          child: Text('Filter & Urutkan',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        ),
                         TextButton(
                           onPressed: () {
                             setSheetState(() {
@@ -594,22 +606,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    Row(
+                    // Avatar filter sekarang menggunakan Wrap agar tidak overflow
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         const Text('Avatar', style: TextStyle(fontWeight: FontWeight.w600)),
-                        const Spacer(),
                         ChoiceChip(
                           label: const Text('Semua'),
                           selected: _filterHasAvatar == null,
                           onSelected: (_) => setSheetState(() => _filterHasAvatar = null),
                         ),
-                        const SizedBox(width: 8),
                         ChoiceChip(
                           label: const Text('Ada'),
                           selected: _filterHasAvatar == true,
                           onSelected: (_) => setSheetState(() => _filterHasAvatar = true),
                         ),
-                        const SizedBox(width: 8),
                         ChoiceChip(
                           label: const Text('Tidak'),
                           selected: _filterHasAvatar == false,
@@ -618,22 +631,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    Row(
+                    // Ikon Kustom filter juga Wrap
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 4,
                       children: [
                         const Text('Ikon Kustom', style: TextStyle(fontWeight: FontWeight.w600)),
-                        const Spacer(),
                         ChoiceChip(
                           label: const Text('Semua'),
                           selected: _filterHasCustomIcon == null,
                           onSelected: (_) => setSheetState(() => _filterHasCustomIcon = null),
                         ),
-                        const SizedBox(width: 8),
                         ChoiceChip(
                           label: const Text('Ada'),
                           selected: _filterHasCustomIcon == true,
                           onSelected: (_) => setSheetState(() => _filterHasCustomIcon = true),
                         ),
-                        const SizedBox(width: 8),
                         ChoiceChip(
                           label: const Text('Tidak'),
                           selected: _filterHasCustomIcon == false,
@@ -1439,21 +1453,34 @@ class _AccountCardState extends State<AccountCard> {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
+              // Ganti Spacer dengan MainAxisAlignment.spaceBetween
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildBadge(widget.index.toString(), isOutline: true),
-                if (acc['account_year'] != null && acc['account_year'].toString().isNotEmpty) ...[
-                  const SizedBox(width: 8),
-                  _buildBadge(acc['account_year'], bgColor: themeColor.withOpacity(0.1), textColor: themeColor),
-                ],
-                const Spacer(),
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildBadge(widget.index.toString(), isOutline: true),
+                      if (acc['account_year'] != null && acc['account_year'].toString().isNotEmpty) ...[
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: _buildBadge(acc['account_year'], bgColor: themeColor.withOpacity(0.1), textColor: themeColor),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(color: const Color(0xFFF8F9FA), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black12)),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildPlatformIcon(acc['custom_icon_path'], displayName, 16),
                       const SizedBox(width: 6),
-                      Text(displayName, style: const TextStyle(color: Colors.black87, fontSize: 11, fontWeight: FontWeight.bold)),
+                      Flexible(
+                        child: Text(displayName, style: const TextStyle(color: Colors.black87, fontSize: 11, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                      ),
                     ],
                   ),
                 )
@@ -1487,7 +1514,7 @@ class _AccountCardState extends State<AccountCard> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(acc['identifier'], style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.black87)),
+                            child: Text(acc['identifier'], style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Colors.black87), overflow: TextOverflow.ellipsis),
                           ),
                           IconButton(
                             icon: const Icon(Icons.copy_outlined, size: 18, color: Colors.black54),
@@ -1507,6 +1534,7 @@ class _AccountCardState extends State<AccountCard> {
                               child: Text(
                                 _isPasswordVisible ? acc['password'] : '••••••••',
                                 style: TextStyle(fontSize: 14, fontFamily: 'monospace', letterSpacing: _isPasswordVisible ? 0 : 2, color: Colors.black87),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             IconButton(
@@ -1592,6 +1620,7 @@ class _AccountCardState extends State<AccountCard> {
                           Text(
                             _getTotp(),
                             style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: themeColor, letterSpacing: 4),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 8),
                           Row(
@@ -1686,8 +1715,9 @@ class _AccountCardState extends State<AccountCard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Dibuat: ${_formatDate(acc['created_at'])}', style: const TextStyle(fontSize: 10, color: Colors.black38)),
-                    Text('Update: ${_formatDate(acc['updated_at'])}', style: const TextStyle(fontSize: 10, color: Colors.black38)),
+                    Flexible(child: Text('Dibuat: ${_formatDate(acc['created_at'])}', style: const TextStyle(fontSize: 10, color: Colors.black38))),
+                    const SizedBox(width: 8),
+                    Flexible(child: Text('Update: ${_formatDate(acc['updated_at'])}', style: const TextStyle(fontSize: 10, color: Colors.black38))),
                   ],
                 )
               ],
@@ -1840,7 +1870,6 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.account != null;
-    // Dinamis padding bawah untuk menghindari navigation bar / gesture bar
     final bottomPadding = MediaQuery.of(context).padding.bottom + 20;
 
     return GestureDetector(
@@ -1863,175 +1892,180 @@ class _AccountFormScreenState extends State<AccountFormScreen> {
             )
           ],
         ),
-        body: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 16,
-            bottom: bottomPadding, // area aman di bawah
-          ),
-          child: Column(
-            children: [
-              Center(
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
-                    border: Border.all(color: Colors.black.withOpacity(0.05)),
-                  ),
-                  clipBehavior: Clip.hardEdge,
-                  child: _buildIconPreview(),
-                ),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            // Padding horizontal adaptif: 16 jika lebar < 360, selainnya 24
+            final padHorizontal = constraints.maxWidth < 360 ? 16.0 : 24.0;
+            return SingleChildScrollView(
+              padding: EdgeInsets.only(
+                left: padHorizontal,
+                right: padHorizontal,
+                top: 16,
+                bottom: bottomPadding,
               ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 50,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    GestureDetector(
-                      onTap: () => _pickImage(false),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        width: 50,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8F9FA),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.black12, style: BorderStyle.solid),
-                        ),
-                        child: const Icon(Icons.add_photo_alternate_outlined, color: Colors.black54),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => setState(() { selectedIconPath = null; }),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        width: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: selectedIconPath == null ? Theme.of(context).colorScheme.primary : Colors.black12, width: selectedIconPath == null ? 2 : 1),
-                        ),
-                        child: const Icon(Icons.public, color: Colors.black54, size: 24),
-                      ),
-                    ),
-                    ..._builtInIcons.map((path) => GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedIconPath = path;
-                          String platformName = path.split('/').last.split('.').first;
-                          if (platformName.toLowerCase() == 'x') {
-                            platformName = 'X (Twitter)';
-                          } else {
-                            platformName = platformName[0].toUpperCase() + platformName.substring(1);
-                          }
-                          _nameController.text = platformName;
-                        });
-                      },
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        padding: const EdgeInsets.all(6),
-                        width: 50,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: selectedIconPath == path ? Theme.of(context).colorScheme.primary : Colors.black12,
-                            width: selectedIconPath == path ? 2 : 1,
-                          ),
-                        ),
-                        child: Image.asset(path),
-                      ),
-                    )).toList()
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildTextField(controller: _nameController, hint: 'Singkatan / Platform (Opsional)', icon: Icons.public),
-              const SizedBox(height: 16),
-              Row(
+              child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: () => _pickImage(true),
+                  Center(
                     child: Container(
-                      width: 52,
-                      height: 52,
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FA),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black12),
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                        border: Border.all(color: Colors.black.withOpacity(0.05)),
                       ),
                       clipBehavior: Clip.hardEdge,
-                      child: selectedAvatarPath != null
-                          ? Image.file(File(selectedAvatarPath!), fit: BoxFit.cover)
-                          : const Icon(Icons.add_a_photo_outlined, color: Colors.black38, size: 20),
+                      child: _buildIconPreview(),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildTextField(controller: _identifierController, hint: 'Email atau Username'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(
-                controller: _passwordController,
-                hint: 'Password Akun',
-                icon: Icons.lock_outline,
-                isPassword: true,
-                isVisible: isPasswordVisible,
-                onVisibilityToggle: () => setState(() { isPasswordVisible = !isPasswordVisible; }),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(child: _buildTextField(controller: _dobController, hint: 'Tgl Lahir')),
-                  const SizedBox(width: 12),
-                  Expanded(child: _buildTextField(controller: _yearController, hint: 'Tahun Buat', keyboardType: TextInputType.number)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(controller: _tagsController, hint: 'Tag (pisahkan koma)', icon: Icons.sports_esports_outlined),
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black.withOpacity(0.05))),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 50,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
                       children: [
-                        const Text('Aktifkan 2-Factor Code', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)),
-                        Switch(value: isA2fEnabled, activeColor: Theme.of(context).colorScheme.primary, onChanged: (val) => setState(() { isA2fEnabled = val; })),
+                        GestureDetector(
+                          onTap: () => _pickImage(false),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            width: 50,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8F9FA),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.black12, style: BorderStyle.solid),
+                            ),
+                            child: const Icon(Icons.add_photo_alternate_outlined, color: Colors.black54),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() { selectedIconPath = null; }),
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            width: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: selectedIconPath == null ? Theme.of(context).colorScheme.primary : Colors.black12, width: selectedIconPath == null ? 2 : 1),
+                            ),
+                            child: const Icon(Icons.public, color: Colors.black54, size: 24),
+                          ),
+                        ),
+                        ..._builtInIcons.map((path) => GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              selectedIconPath = path;
+                              String platformName = path.split('/').last.split('.').first;
+                              if (platformName.toLowerCase() == 'x') {
+                                platformName = 'X (Twitter)';
+                              } else {
+                                platformName = platformName[0].toUpperCase() + platformName.substring(1);
+                              }
+                              _nameController.text = platformName;
+                            });
+                          },
+                          child: Container(
+                            margin: const EdgeInsets.only(right: 12),
+                            padding: const EdgeInsets.all(6),
+                            width: 50,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selectedIconPath == path ? Theme.of(context).colorScheme.primary : Colors.black12,
+                                width: selectedIconPath == path ? 2 : 1,
+                              ),
+                            ),
+                            child: Image.asset(path),
+                          ),
+                        )).toList()
                       ],
                     ),
-                    if (isA2fEnabled) ...[
-                      const Divider(height: 24),
-                      _buildTextField(controller: _secretKeyController, hint: 'Masukkan Secret Key Base32'),
-                    ]
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: _saveAccount,
-                  child: Text(isEdit ? 'Simpan Perubahan' : 'Simpan Akun Baru', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                ),
+                  const SizedBox(height: 24),
+                  _buildTextField(controller: _nameController, hint: 'Singkatan / Platform (Opsional)', icon: Icons.public),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      GestureDetector(
+                        onTap: () => _pickImage(true),
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F9FA),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.black12),
+                          ),
+                          clipBehavior: Clip.hardEdge,
+                          child: selectedAvatarPath != null
+                              ? Image.file(File(selectedAvatarPath!), fit: BoxFit.cover)
+                              : const Icon(Icons.add_a_photo_outlined, color: Colors.black38, size: 20),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildTextField(controller: _identifierController, hint: 'Email atau Username'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _passwordController,
+                    hint: 'Password Akun',
+                    icon: Icons.lock_outline,
+                    isPassword: true,
+                    isVisible: isPasswordVisible,
+                    onVisibilityToggle: () => setState(() { isPasswordVisible = !isPasswordVisible; }),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField(controller: _dobController, hint: 'Tgl Lahir')),
+                      const SizedBox(width: 12),
+                      Expanded(child: _buildTextField(controller: _yearController, hint: 'Tahun Buat', keyboardType: TextInputType.number)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(controller: _tagsController, hint: 'Tag (pisahkan koma)', icon: Icons.sports_esports_outlined),
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.black.withOpacity(0.05))),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Flexible(child: Text('Aktifkan 2-Factor Code', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87))),
+                            Switch(value: isA2fEnabled, activeColor: Theme.of(context).colorScheme.primary, onChanged: (val) => setState(() { isA2fEnabled = val; })),
+                          ],
+                        ),
+                        if (isA2fEnabled) ...[
+                          const Divider(height: 24),
+                          _buildTextField(controller: _secretKeyController, hint: 'Masukkan Secret Key Base32'),
+                        ]
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: _saveAccount,
+                      child: Text(isEdit ? 'Simpan Perubahan' : 'Simpan Akun Baru', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
-              // Tidak perlu SizedBox tambahan karena padding bawah SingleChildScrollView sudah mencakup area aman
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
