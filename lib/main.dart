@@ -331,7 +331,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _accounts = [];
-  int _totalAccounts = 0; // total seluruh akun di database
+  int _totalAccounts = 0;
   Timer? _globalTimer;
   int _secondsRemaining = 30;
 
@@ -339,12 +339,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String _searchQuery = '';
   String _sortOption = 'terbaru';
 
-  // Filter state
   List<String> _selectedTags = [];
   List<String> _selectedPlatforms = [];
   bool _filter2FA = false;
   String _filterYear = '';
-  bool? _filterHasAvatar; // null = tidak filter, true = harus ada, false = harus tidak ada
+  bool? _filterHasAvatar;
   bool? _filterHasCustomIcon;
 
   final TextEditingController _yearFilterController = TextEditingController();
@@ -428,27 +427,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (mounted) {
       setState(() { _accounts = data; });
-      _showFilterResultSnackBar(data.length);
     }
-  }
-
-  void _showFilterResultSnackBar(int count) {
-    // Tampilkan hanya jika ada filter/pencarian yang aktif
-    if (!_hasAnyFilter()) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              count == 1 ? '1 akun ditemukan' : '$count akun ditemukan',
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    });
   }
 
   void _showUnifiedFilterSheet(BuildContext context) async {
@@ -477,7 +456,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Judul
                     Row(
                       children: [
                         const Text('Filter & Urutkan', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -500,8 +478,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-
-                    // Urutkan
                     const Text('Urutkan', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
                     Wrap(
@@ -534,8 +510,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-
-                    // Platform
                     const Text('Platform', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
                     Wrap(
@@ -561,8 +535,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 20),
-
-                    // Tag
                     const Text('Tag', style: TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
                     Wrap(
@@ -588,8 +560,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 20),
-
-                    // 2FA
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Hanya akun dengan 2FA'),
@@ -598,8 +568,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       onChanged: (val) => setSheetState(() => _filter2FA = val),
                     ),
                     const SizedBox(height: 8),
-
-                    // Tahun Akun
                     TextField(
                       controller: _yearFilterController,
                       decoration: InputDecoration(
@@ -624,8 +592,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-
-                    // Avatar
                     Row(
                       children: [
                         const Text('Avatar', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -650,8 +616,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
-
-                    // Ikon Kustom
                     Row(
                       children: [
                         const Text('Ikon Kustom', style: TextStyle(fontWeight: FontWeight.w600)),
@@ -675,9 +639,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 24),
-                    // Tombol Terapkan
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -857,7 +819,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              // Tombol Filter & Urutkan
               Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -878,6 +839,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ],
           ),
+          if (_hasAnyFilter()) ...[
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                _accounts.length == 1 ? '1 akun ditemukan' : '${_accounts.length} akun ditemukan',
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontWeight: FontWeight.w500,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
