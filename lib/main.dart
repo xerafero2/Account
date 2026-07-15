@@ -331,9 +331,9 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> _accounts = [];
-  int _totalAccounts = 0; // total akun di database tanpa filter
   Timer? _globalTimer;
   int _secondsRemaining = 30;
+  int _totalAccountsCount = 0; // total seluruh akun di database
 
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -348,15 +348,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool? _filterHasCustomIcon;
 
   final TextEditingController _yearFilterController = TextEditingController();
-
-  bool get _isAnyFilterActive =>
-      _searchQuery.isNotEmpty ||
-      _selectedTags.isNotEmpty ||
-      _selectedPlatforms.isNotEmpty ||
-      _filter2FA ||
-      _filterYear.isNotEmpty ||
-      _filterHasAvatar != null ||
-      _filterHasCustomIcon != null;
 
   @override
   void initState() {
@@ -405,11 +396,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return result.map((row) => row['name'] as String).toList()..sort();
   }
 
-  Future<void> _refreshAccounts() async {
-    // Ambil total akun tanpa filter
-    final total = await DatabaseHelper.instance.getTotalAccountCount();
+  Future<void> _updateTotalCount() async {
+    final count = await DatabaseHelper.instance.getTotalAccountCount();
+    if (mounted) setState(() => _totalAccountsCount = count);
+  }
 
-    // Ambil data terfilter
+  Future<void> _refreshAccounts() async {
+    // Update total akun tersimpan (tidak terpengaruh filter)
+    await _updateTotalCount();
+
     final data = await DatabaseHelper.instance.fetchAccounts(
       query: _searchQuery,
       sortOption: _sortOption,
@@ -421,12 +416,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
       filterHasCustomIcon: _filterHasCustomIcon,
     );
 
-    if (mounted) {
-      setState(() {
-        _totalAccounts = total;
-        _accounts = data;
-      });
-    }
+    if (mounted) setState(() { _accounts = data; });
+  }
+
+  int get _activeFilterCount {
+    int count = 0;
+    if (_selectedTags.isNotEmpty) count++;
+    if (_selectedPlatforms.isNotEmpty) count++;
+    if (_filter2FA) count++;
+    if (_filterYear.isNotEmpty) count++;
+    if (_filterHasAvatar != null) count++;
+    if (_filterHasCustomIcon != null) count++;
+    return count;
+  }
+
+  bool get _hasAnyFilter {
+    return _searchQuery.isNotEmpty ||
+        _selectedTags.isNotEmpty ||
+        _selectedPlatforms.isNotEmpty ||
+        _filter2FA ||
+        _filterYear.isNotEmpty ||
+        _filterHasAvatar != null ||
+        _filterHasCustomIcon != null;
   }
 
   void _showUnifiedFilterSheet(BuildContext context) async {
@@ -694,7 +705,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: _accounts.isEmpty
                     ? Center(
                         child: Text(
-                          _isAnyFilterActive ? 'Tidak ada akun ditemukan' : 'Belum ada akun yang disimpan',
+                          _hasAnyFilter ? 'Tidak ada akun ditemukan' : 'Belum ada akun yang disimpan',
                           style: const TextStyle(color: Colors.black38, fontWeight: FontWeight.w500),
                         ),
                       )
@@ -733,7 +744,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildCleanHeader(BuildContext context) {
     final themeColor = Theme.of(context).colorScheme.primary;
-    final hasFilter = _isAnyFilterActive;
+    final activeFilters = _activeFilterCount;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
@@ -767,15 +778,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     const Text('Account Manager', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87, letterSpacing: -0.5)),
                     const SizedBox(height: 2),
-                    Text(
-                      '$_totalAccounts Akun tersimpan',
-                      style: TextStyle(color: themeColor, fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
-                    if (hasFilter)
-                      Text(
-                        'Menampilkan ${_accounts.length} akun',
-                        style: TextStyle(color: Colors.black54, fontSize: 12, fontWeight: FontWeight.w500),
-                      ),
+                    Text('$_totalAccountsCount Akun tersimpan', style: TextStyle(color: themeColor, fontWeight: FontWeight.bold, fontSize: 12)),
                   ],
                 ),
               ),
@@ -828,22 +831,40 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              // Tombol Filter & Urutkan (dengan teks)
-              OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: hasFilter ? themeColor : Colors.black87,
-                  side: BorderSide(color: hasFilter ? themeColor : Colors.black.withOpacity(0.1)),
-                  backgroundColor: hasFilter ? themeColor.withOpacity(0.05) : Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              // Tombol Filter & Urutkan
+              Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  color: activeFilters > 0 ? themeColor.withOpacity(0.1) : Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: activeFilters > 0 ? themeColor : Colors.black.withOpacity(0.1)),
                 ),
-                icon: Icon(Icons.filter_list, size: 20, color: hasFilter ? themeColor : Colors.black54),
-                label: const Text('Filter & Sort'),
-                onPressed: () => _showUnifiedFilterSheet(context),
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: activeFilters > 0 ? themeColor : Colors.black87,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                  icon: Icon(Icons.filter_list, size: 20, color: activeFilters > 0 ? themeColor : Colors.black54),
+                  label: Text('Filter & Sort${activeFilters > 0 ? " ($activeFilters)" : ""}'),
+                  onPressed: () => _showUnifiedFilterSheet(context),
+                ),
               ),
             ],
           ),
+          // Tampilkan jumlah akun yang ditemukan jika filter/pencarian aktif
+          if (_hasAnyFilter)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '${_accounts.length} akun ditemukan',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: themeColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
         ],
       ),
     );
